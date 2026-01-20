@@ -1,4 +1,4 @@
-// Copyright (c) 2025 Nick McClure (Protospatial). All Rights Reserved.
+﻿// Copyright (c) 2025 Nick McClure (Protospatial). All Rights Reserved.
 
 #include "Models/N2CPin.h"
 #include "Utils/N2CPinTypeCompatibility.h"

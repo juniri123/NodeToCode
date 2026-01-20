@@ -1,4 +1,4 @@
-// Copyright (c) 2025 Nick McClure (Protospatial). All Rights Reserved.
+﻿// Copyright (c) 2025 Nick McClure (Protospatial). All Rights Reserved.
 
 #include "LLM/N2CBaseLLMService.h"
 #include "LLM/N2CHttpHandler.h"
