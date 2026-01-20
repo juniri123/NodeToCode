@@ -77,6 +77,9 @@ void UN2CLLMModule::ProcessN2CJson(
 
     CurrentStatus = EN2CSystemStatus::Processing;
     
+    // Clear any previous translation path for this request
+    LatestTranslationPath = TEXT("");
+
     // Broadcast that request is being sent
     OnTranslationRequestSent.Broadcast();
 
@@ -85,6 +88,12 @@ void UN2CLLMModule::ProcessN2CJson(
         FN2CLogger::Get().LogError(TEXT("No active LLM service"), TEXT("LLMModule"));
         const bool bExecuted = OnComplete.ExecuteIfBound(TEXT("{\"error\": \"No active service\"}"));
         return;
+    }
+
+    // Save the exact JSON payload before sending to the LLM
+    if (!SaveRequestJsonToDisk(JsonInput))
+    {
+        FN2CLogger::Get().LogWarning(TEXT("Failed to save pre-request JSON payload"));
     }
 
     // Get active service
@@ -218,7 +227,11 @@ bool UN2CLLMModule::SaveTranslationToDisk(const FN2CTranslationResponse& Respons
     }
     
     // Generate root path for this translation
-    FString RootPath = GenerateTranslationRootPath(BlueprintName);
+    FString RootPath = LatestTranslationPath;
+    if (RootPath.IsEmpty())
+    {
+        RootPath = GenerateTranslationRootPath(BlueprintName);
+    }
     
     // Ensure the directory exists
     if (!EnsureDirectoryExists(RootPath))
@@ -360,6 +373,44 @@ bool UN2CLLMModule::SaveTranslationToDisk(const FN2CTranslationResponse& Respons
     }
     
     FN2CLogger::Get().Log(FString::Printf(TEXT("Translation saved to: %s"), *RootPath), EN2CLogSeverity::Info);
+    return true;
+}
+
+bool UN2CLLMModule::SaveRequestJsonToDisk(const FString& JsonInput)
+{
+    // Get blueprint name from current translator state
+    const FN2CBlueprint& Blueprint = FN2CNodeTranslator::Get().GetN2CBlueprint();
+    FString BlueprintName = Blueprint.Metadata.Name;
+    if (BlueprintName.IsEmpty())
+    {
+        BlueprintName = TEXT("UnknownBlueprint");
+    }
+
+    // Reuse or create the translation root path
+    FString RootPath = LatestTranslationPath;
+    if (RootPath.IsEmpty())
+    {
+        RootPath = GenerateTranslationRootPath(BlueprintName);
+    }
+
+    if (!EnsureDirectoryExists(RootPath))
+    {
+        FN2CLogger::Get().LogError(FString::Printf(TEXT("Failed to create translation directory: %s"), *RootPath));
+        return false;
+    }
+
+    LatestTranslationPath = RootPath;
+
+    // Save the raw request JSON as-is
+    const FString RequestJsonFileName = TEXT("N2C_Request.json");
+    const FString RequestJsonFilePath = FPaths::Combine(RootPath, RequestJsonFileName);
+
+    if (!FFileHelper::SaveStringToFile(JsonInput, *RequestJsonFilePath))
+    {
+        FN2CLogger::Get().LogWarning(FString::Printf(TEXT("Failed to save request JSON file: %s"), *RequestJsonFilePath));
+        return false;
+    }
+
     return true;
 }
 
