@@ -498,6 +498,18 @@ void FN2CEditorIntegration::ExecuteCollectNodesForEditor(TWeakPtr<FBlueprintEdit
                     {
                         FN2CLogger::Get().LogWarning(FString::Printf(TEXT("Failed to build flow JSON: %s"), *FlowError));
                     }
+
+                    FString FlowText;
+                    FString FlowTextError;
+                    if (FN2CFlowBuilder::BuildFlowTextFromNodes(CollectedNodes, FlowText, FlowTextError))
+                    {
+                        LLMModule->SetPendingFlowText(FlowText);
+                        FN2CLogger::Get().Log(TEXT("Flow text generated successfully"), EN2CLogSeverity::Info);
+                    }
+                    else
+                    {
+                        FN2CLogger::Get().LogWarning(FString::Printf(TEXT("Failed to build flow text: %s"), *FlowTextError));
+                    }
                     
                     if (LLMModule->Initialize())
                     {

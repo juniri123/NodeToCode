@@ -31,6 +31,171 @@ TSharedPtr<N2CFlow::Step> FindStepByKey(const TMap<FString, TSharedPtr<N2CFlow::
     return Found ? *Found : nullptr;
 }
 
+// 단일 Step을 텍스트 라인으로 변환
+TArray<FString> PrintSingleStep(const TSharedPtr<N2CFlow::Step>& Step, bool bWithIndent)
+{
+    TArray<FString> Lines;
+    if (!Step.IsValid() || !Step->Node.IsValid())
+    {
+        return Lines;
+    }
+
+    const FString IndentPrefix = bWithIndent ? FString::Join(TArray<FString>(Step->LogicDepth, TEXT("│   ")), TEXT("")) : TEXT("");
+
+    FString BranchLabel;
+    if (Step->FromPins.Num() > 0)
+    {
+        const FString PrefixIcon = Step->bIsBranched ? TEXT("➡️ ") : TEXT("");
+        TArray<FString> Parts;
+        for (const N2CFlow::Pin& Pin : Step->FromPins)
+        {
+            Parts.Add(FString::Printf(TEXT("%s📌%s::%s from (📋%s::%s)"),
+                                      *PrefixIcon,
+                                      *Pin.Name,
+                                      *Pin.Guid,
+                                      *Pin.NodeName,
+                                      *Pin.NodeGuid));
+        }
+        BranchLabel = FString::Join(Parts, TEXT(", "));
+    }
+
+    const FString CommentOut = Step->bIsCommentOut ? TEXT("//") : TEXT("");
+
+    // Common Logic Placeholder 처리
+    if (Step->bIsCommonPlaceholder)
+    {
+        if (Step->bIsBranched)
+        {
+            Lines.Add(IndentPrefix + BranchLabel);
+            const FString CommonIndent = FString::Join(TArray<FString>(Step->LogicDepth + 1, TEXT("│   ")), TEXT(""));
+            Lines.Add(FString::Printf(TEXT("%s%s↪️ Placeholder::%s for 📋%s::%s"),
+                                      *CommonIndent,
+                                      *CommentOut,
+                                      *Step->Key,
+                                      *Step->Node->Name,
+                                      *Step->Node->Guid));
+        }
+        else
+        {
+            Lines.Add(FString::Printf(TEXT("%s%s%s → ↪️ Placeholder::%s for 📋%s::%s"),
+                                      *IndentPrefix,
+                                      *CommentOut,
+                                      *BranchLabel,
+                                      *Step->Key,
+                                      *Step->Node->Name,
+                                      *Step->Node->Guid));
+        }
+        return Lines;
+    }
+
+    // common step 출력
+    if (Step->IsCommonStep())
+    {
+        Lines.Add(IndentPrefix + TEXT("----- From Pins -----"));
+        for (const N2CFlow::Pin& Pin : Step->FromPins)
+        {
+            Lines.Add(FString::Printf(TEXT("%s📌%s::%s from (📋%s::%s)"),
+                                      *IndentPrefix,
+                                      *Pin.Name,
+                                      *Pin.Guid,
+                                      *Pin.NodeName,
+                                      *Pin.NodeGuid));
+        }
+        Lines.Add(IndentPrefix + TEXT("----- Placeholders -----"));
+        for (const TSharedPtr<N2CFlow::Step>& Placeholder : Step->CommonPlaceholders)
+        {
+            if (Placeholder.IsValid())
+            {
+                Lines.Add(IndentPrefix + Placeholder->Key);
+            }
+        }
+        Lines.Add(IndentPrefix + TEXT("---------------------"));
+        Lines.Add(FString::Printf(TEXT("%s📋%s::%s"), *IndentPrefix, *Step->Node->Name, *Step->Node->Guid));
+        return Lines;
+    }
+
+    // merging point 출력
+    if (Step->bIsMergingPoint)
+    {
+        Lines.Add(IndentPrefix + TEXT("Merging Point ") + Step->Key);
+        Lines.Add(IndentPrefix + TEXT("----- Merged Placeholders -----"));
+        for (const TSharedPtr<N2CFlow::Step>& Placeholder : Step->CommonPlaceholders)
+        {
+            if (Placeholder.IsValid() && Placeholder->Node.IsValid())
+            {
+                Lines.Add(FString::Printf(TEXT("%s%s (📋%s::%s)"),
+                                          *IndentPrefix,
+                                          *Placeholder->Key,
+                                          *Placeholder->Node->Name,
+                                          *Placeholder->Node->Guid));
+            }
+        }
+        Lines.Add(IndentPrefix + TEXT("---------------------"));
+        return Lines;
+    }
+
+    // branched step 출력
+    if (Step->bIsBranched)
+    {
+        Lines.Add(IndentPrefix + BranchLabel);
+        const FString BranchedIndent = FString::Join(TArray<FString>(Step->LogicDepth + 1, TEXT("│   ")), TEXT(""));
+        Lines.Add(FString::Printf(TEXT("%s%s📋%s::%s"),
+                                  *BranchedIndent,
+                                  *CommentOut,
+                                  *Step->Node->Name,
+                                  *Step->Node->Guid));
+        return Lines;
+    }
+
+    // 일반적인 경우
+    Lines.Add(FString::Printf(TEXT("%s%s%s → 📋%s::%s"),
+                              *CommentOut,
+                              *IndentPrefix,
+                              *BranchLabel,
+                              *Step->Node->Name,
+                              *Step->Node->Guid));
+    return Lines;
+}
+
+// 실행 흐름을 문자열 리스트로 출력
+TArray<FString> PrintSteps(const TSharedPtr<N2CFlow::Step>& Step)
+{
+    TArray<FString> Lines;
+    if (!Step.IsValid())
+    {
+        return Lines;
+    }
+
+    Lines.Append(PrintSingleStep(Step, true));
+    for (const TSharedPtr<N2CFlow::Step>& Child : Step->Branches)
+    {
+        Lines.Append(PrintSteps(Child));
+    }
+    Lines.Append(PrintSteps(Step->Next));
+    return Lines;
+}
+
+// common_steps에 저장된 모든 step을 순회하며 출력
+TArray<FString> PrintCommonSteps(const TMap<FString, TSharedPtr<N2CFlow::Step>>& CommonSteps)
+{
+    TArray<FString> Lines;
+    if (CommonSteps.Num() == 0)
+    {
+        Lines.Add(TEXT("[INFO] No common step to display."));
+        return Lines;
+    }
+
+    int32 Num = 0;
+    for (const TPair<FString, TSharedPtr<N2CFlow::Step>>& Pair : CommonSteps)
+    {
+        Lines.Add(FString::Printf(TEXT("[#%d]"), Num));
+        Lines.Append(PrintSteps(Pair.Value));
+        Lines.Add(TEXT(""));
+        ++Num;
+    }
+    return Lines;
+}
+
 // 부모 체인 수집 (child -> root)
 // from 핀이 여러 개인 경우 common step으로 flatten 되었으므로 부모 1개 보장
 TArray<TSharedPtr<N2CFlow::Step>> GetParentChain(const TSharedPtr<N2CFlow::Step>& Step,
@@ -888,4 +1053,48 @@ TSharedPtr<FJsonObject> FN2CFlowBuilder::FlowDataToJsonObject(const FN2CFlowData
     RootObject->SetObjectField(TEXT("nodes"), NodesObject);
 
     return RootObject;
+}
+
+bool FN2CFlowBuilder::BuildFlowTextFromGraph(UEdGraph* Graph, FString& OutText, FString& OutError)
+{
+    FN2CFlowData Data;
+    if (!BuildFlowDataFromGraph(Graph, Data, OutError))
+    {
+        return false;
+    }
+
+    TArray<FString> Lines = FlowDataToTextLines(Data);
+    OutText = FString::Join(Lines, TEXT("\n"));
+    return true;
+}
+
+bool FN2CFlowBuilder::BuildFlowTextFromNodes(const TArray<UK2Node*>& Nodes, FString& OutText, FString& OutError)
+{
+    FN2CFlowData Data;
+    if (!BuildFlowDataFromNodes(Nodes, Data, OutError))
+    {
+        return false;
+    }
+
+    TArray<FString> Lines = FlowDataToTextLines(Data);
+    OutText = FString::Join(Lines, TEXT("\n"));
+    return true;
+}
+
+TArray<FString> FN2CFlowBuilder::FlowDataToTextLines(const FN2CFlowData& Data)
+{
+    TArray<FString> Lines;
+    if (!Data.EntryStep.IsValid())
+    {
+        return Lines;
+    }
+
+    // 결과 문자열 리스트 생성
+    Lines.Add(TEXT("=========== Steps ==========="));
+    Lines.Append(PrintSteps(Data.EntryStep));
+    Lines.Add(TEXT(""));
+    Lines.Add(TEXT(""));
+    Lines.Add(TEXT("=========== Common Steps ==========="));
+    Lines.Append(PrintCommonSteps(Data.CommonSteps));
+    return Lines;
 }

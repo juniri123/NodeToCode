@@ -78,6 +78,13 @@ public:
     /** Clear pending flow JSON */
     void ClearPendingFlowJson();
 
+    /** Store flow text to be saved with the translation output */
+    void SetPendingFlowText(const FString& InFlowText);
+    /** Retrieve pending flow text if available */
+    bool GetPendingFlowText(FString& OutFlowText) const;
+    /** Clear pending flow text */
+    void ClearPendingFlowText();
+
 private:
     /** Generate file paths for translation */
     FString GenerateTranslationRootPath(const FString& BlueprintName) const;
@@ -130,6 +137,9 @@ private:
     /** Pending flow JSON captured at request time */
     FString PendingFlowJson;
     bool bHasPendingFlowJson = false;
+
+    FString PendingFlowText;
+    bool bHasPendingFlowText = false;
     
     /** Initialization state */
     bool bIsInitialized;

@@ -27,6 +27,8 @@ public:
     static bool BuildFlowDataFromNodes(const TArray<UK2Node*>& Nodes, FN2CFlowData& OutData, FString& OutError);
     static bool BuildFlowJsonFromGraph(UEdGraph* Graph, FString& OutJson, FString& OutError);
     static bool BuildFlowJsonFromNodes(const TArray<UK2Node*>& Nodes, FString& OutJson, FString& OutError);
+    static bool BuildFlowTextFromGraph(UEdGraph* Graph, FString& OutText, FString& OutError);
+    static bool BuildFlowTextFromNodes(const TArray<UK2Node*>& Nodes, FString& OutText, FString& OutError);
 
 private:
     static bool BuildNodesFromK2Nodes(const TArray<UK2Node*>& Nodes, TMap<FString, TSharedPtr<N2CFlow::Node>>& OutNodesByName);
@@ -42,4 +44,5 @@ private:
                                      bool bDebug);
 
     static TSharedPtr<FJsonObject> FlowDataToJsonObject(const FN2CFlowData& Data);
+    static TArray<FString> FlowDataToTextLines(const FN2CFlowData& Data);
 };
