@@ -22,6 +22,7 @@
 #include "Widgets/Notifications/SNotificationList.h"
 #include "ISourceControlModule.h"
 #include "ISourceControlProvider.h"
+#include "ISourceControlRevision.h"
 #include "ISourceControlState.h"
 
 #if PLATFORM_WINDOWS
@@ -70,9 +71,14 @@ namespace
             return FString();
         }
 
-        if (State->GetChangelist().IsValid())
+        const TSharedPtr<ISourceControlRevision, ESPMode::ThreadSafe> Revision = State->GetRevision();
+        if (Revision.IsValid())
         {
-            return FString::FromInt(State->GetChangelist()->GetNumber());
+            const FString Identifier = Revision->GetCheckInIdentifier();
+            if (!Identifier.IsEmpty())
+            {
+                return Identifier;
+            }
         }
 
         return FString();
@@ -99,6 +105,7 @@ void FN2CEditorIntegration::ExecuteCopyJsonForEditor(TWeakPtr<FBlueprintEditor> 
         FN2CLogger::Get().LogError(TEXT("No focused graph in Blueprint Editor"));
         return;
     }
+    const FString GraphName = FocusedGraph->GetName();
 
     FString GraphName = FocusedGraph->GetName();
     FString BlueprintName = TEXT("Unknown");
@@ -533,7 +540,19 @@ void FN2CEditorIntegration::RegisterToolbarForEditor(TSharedPtr<FBlueprintEditor
             FN2CLogger::Get().Log(
                 FString::Printf(TEXT("Copy Blueprint JSON triggered for Blueprint: %s"), *BlueprintName),
                 EN2CLogSeverity::Info
-      );
+            );
+            ExecuteCopyJsonForEditor(WeakEditor);
+        }),
+        FCanExecuteAction::CreateLambda([WeakEditor]()
+        {
+            TSharedPtr<FBlueprintEditor> Editor = WeakEditor.Pin();
+            if (!Editor.IsValid())
+            {
+                return false;
+            }
+            return Editor->GetCurrentMode() == FBlueprintEditorApplicationModes::StandardBlueprintEditorMode;
+        })
+    );
 
     CommandList->MapAction(
         FN2CToolbarCommand::Get().SaveFlowCommand,
@@ -565,18 +584,6 @@ void FN2CEditorIntegration::RegisterToolbarForEditor(TSharedPtr<FBlueprintEditor
                 EN2CLogSeverity::Info
             );
             ExecuteCopyFlowTextForEditor(WeakEditor);
-        }),
-        FCanExecuteAction::CreateLambda([WeakEditor]()
-        {
-            TSharedPtr<FBlueprintEditor> Editor = WeakEditor.Pin();
-            if (!Editor.IsValid())
-            {
-                return false;
-            }
-            return Editor->GetCurrentMode() == FBlueprintEditorApplicationModes::StandardBlueprintEditorMode;
-        })
-    );
-            ExecuteCopyJsonForEditor(WeakEditor);
         }),
         FCanExecuteAction::CreateLambda([WeakEditor]()
         {

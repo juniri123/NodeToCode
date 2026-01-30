@@ -105,7 +105,6 @@ namespace N2CFlow
 
         return Out;
     }
-    }
 
     // -------------------- Pin --------------------
     TSharedPtr<FJsonObject> Pin::ToJsonObject() const
