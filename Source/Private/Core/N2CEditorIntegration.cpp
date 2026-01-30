@@ -12,9 +12,12 @@
 #include "Core/N2CSerializer.h"
 #include "Core/N2CSettings.h"
 #include "Core/N2CToolbarCommand.h"
+#include "HAL/PlatformFileManager.h"
 #include "LLM/N2CLLMModule.h"
 #include "LLM/N2CLLMTypes.h"
 #include "Framework/Notifications/NotificationManager.h"
+#include "Misc/FileHelper.h"
+#include "Misc/Paths.h"
 #include "Widgets/Notifications/SNotificationList.h"
 
 #if PLATFORM_WINDOWS
@@ -123,6 +126,152 @@ void FN2CEditorIntegration::ExecuteCopyJsonForEditor(TWeakPtr<FBlueprintEditor> 
         {
             FN2CLogger::Get().LogError(TEXT("Failed to translate nodes"));
         }
+    }
+}
+
+void FN2CEditorIntegration::ExecuteSaveFlowForEditor(TWeakPtr<FBlueprintEditor> InEditor)
+{
+    // Get the editor pointer
+    TSharedPtr<FBlueprintEditor> Editor = InEditor.Pin();
+    if (!Editor.IsValid())
+    {
+        FN2CLogger::Get().LogError(TEXT("Invalid Blueprint Editor pointer"));
+        return;
+    }
+
+    // Get focused graph
+    UEdGraph* FocusedGraph = Editor->GetFocusedGraph();
+    if (!FocusedGraph)
+    {
+        FN2CLogger::Get().LogError(TEXT("No focused graph in Blueprint Editor"));
+        return;
+    }
+
+    FString BlueprintName = TEXT("Unknown");
+    if (UBlueprint* Blueprint = Cast<UBlueprint>(FocusedGraph->GetOuter()))
+    {
+        BlueprintName = Blueprint->GetName();
+    }
+
+    // Collect nodes
+    FN2CNodeCollector& Collector = FN2CNodeCollector::Get();
+    TArray<UK2Node*> CollectedNodes;
+    if (!Collector.CollectNodesFromGraph(FocusedGraph, CollectedNodes))
+    {
+        FN2CLogger::Get().LogError(TEXT("Failed to collect nodes for flow output"));
+        return;
+    }
+
+    FString FlowJson;
+    FString FlowJsonError;
+    if (!FN2CFlowBuilder::BuildFlowJsonFromNodes(CollectedNodes, FlowJson, FlowJsonError))
+    {
+        FN2CLogger::Get().LogError(FString::Printf(TEXT("Failed to build flow JSON: %s"), *FlowJsonError));
+        return;
+    }
+
+    FString FlowText;
+    FString FlowTextError;
+    if (!FN2CFlowBuilder::BuildFlowTextFromNodes(CollectedNodes, FlowText, FlowTextError))
+    {
+        FN2CLogger::Get().LogError(FString::Printf(TEXT("Failed to build flow text: %s"), *FlowTextError));
+        return;
+    }
+
+    // Resolve output root
+    const UN2CSettings* Settings = GetDefault<UN2CSettings>();
+    FString BasePath;
+    if (Settings && !Settings->CustomTranslationOutputDirectory.Path.IsEmpty())
+    {
+        BasePath = Settings->CustomTranslationOutputDirectory.Path;
+    }
+    else
+    {
+        BasePath = FPaths::ProjectSavedDir() / TEXT("NodeToCode") / TEXT("Translations");
+    }
+
+    const FString Timestamp = FDateTime::Now().ToString(TEXT("%Y-%m-%d-%H.%M.%S"));
+    const FString RootPath = FPaths::Combine(BasePath, FString::Printf(TEXT("%s_%s"), *BlueprintName, *Timestamp));
+    const FString FlowDir = FPaths::Combine(RootPath, TEXT("python"));
+
+    // Ensure directory exists
+    IPlatformFile& PlatformFile = FPlatformFileManager::Get().GetPlatformFile();
+    if (!PlatformFile.CreateDirectoryTree(*FlowDir))
+    {
+        FN2CLogger::Get().LogError(FString::Printf(TEXT("Failed to create flow output directory: %s"), *FlowDir));
+        return;
+    }
+
+    const FString FlowJsonPath = FPaths::Combine(FlowDir, TEXT("flow.json"));
+    const FString FlowTextPath = FPaths::Combine(FlowDir, TEXT("flow.txt"));
+
+    if (!FFileHelper::SaveStringToFile(FlowJson, *FlowJsonPath))
+    {
+        FN2CLogger::Get().LogError(FString::Printf(TEXT("Failed to save flow JSON: %s"), *FlowJsonPath));
+        return;
+    }
+
+    if (!FFileHelper::SaveStringToFile(FlowText, *FlowTextPath))
+    {
+        FN2CLogger::Get().LogError(FString::Printf(TEXT("Failed to save flow text: %s"), *FlowTextPath));
+        return;
+    }
+
+    // Show notification
+    FNotificationInfo Info(NSLOCTEXT("NodeToCode", "FlowSaved", "Flow files saved"));
+    Info.bFireAndForget = true;
+    Info.FadeInDuration = 0.2f;
+    Info.FadeOutDuration = 0.5f;
+    Info.ExpireDuration = 2.0f;
+    FSlateNotificationManager::Get().AddNotification(Info);
+}
+
+void FN2CEditorIntegration::ExecuteCopyFlowTextForEditor(TWeakPtr<FBlueprintEditor> InEditor)
+{
+    // Get the editor pointer
+    TSharedPtr<FBlueprintEditor> Editor = InEditor.Pin();
+    if (!Editor.IsValid())
+    {
+        FN2CLogger::Get().LogError(TEXT("Invalid Blueprint Editor pointer"));
+        return;
+    }
+
+    // Get focused graph
+    UEdGraph* FocusedGraph = Editor->GetFocusedGraph();
+    if (!FocusedGraph)
+    {
+        FN2CLogger::Get().LogError(TEXT("No focused graph in Blueprint Editor"));
+        return;
+    }
+
+    // Collect nodes
+    FN2CNodeCollector& Collector = FN2CNodeCollector::Get();
+    TArray<UK2Node*> CollectedNodes;
+    if (!Collector.CollectNodesFromGraph(FocusedGraph, CollectedNodes))
+    {
+        FN2CLogger::Get().LogError(TEXT("Failed to collect nodes for flow text"));
+        return;
+    }
+
+    FString FlowText;
+    FString FlowTextError;
+    if (!FN2CFlowBuilder::BuildFlowTextFromNodes(CollectedNodes, FlowText, FlowTextError))
+    {
+        FN2CLogger::Get().LogError(FString::Printf(TEXT("Failed to build flow text: %s"), *FlowTextError));
+        return;
+    }
+
+    if (!FlowText.IsEmpty())
+    {
+        FPlatformApplicationMisc::ClipboardCopy(*FlowText);
+
+        // Show notification
+        FNotificationInfo Info(NSLOCTEXT("NodeToCode", "FlowTextCopied", "Flow text copied to clipboard"));
+        Info.bFireAndForget = true;
+        Info.FadeInDuration = 0.2f;
+        Info.FadeOutDuration = 0.5f;
+        Info.ExpireDuration = 2.0f;
+        FSlateNotificationManager::Get().AddNotification(Info);
     }
 }
 
@@ -310,7 +459,49 @@ void FN2CEditorIntegration::RegisterToolbarForEditor(TSharedPtr<FBlueprintEditor
             FN2CLogger::Get().Log(
                 FString::Printf(TEXT("Copy Blueprint JSON triggered for Blueprint: %s"), *BlueprintName),
                 EN2CLogSeverity::Info
+      );
+
+    CommandList->MapAction(
+        FN2CToolbarCommand::Get().SaveFlowCommand,
+        FExecuteAction::CreateLambda([this, WeakEditor, BlueprintName]()
+        {
+            FN2CLogger::Get().Log(
+                FString::Printf(TEXT("Save Flow Files triggered for Blueprint: %s"), *BlueprintName),
+                EN2CLogSeverity::Info
             );
+            ExecuteSaveFlowForEditor(WeakEditor);
+        }),
+        FCanExecuteAction::CreateLambda([WeakEditor]()
+        {
+            TSharedPtr<FBlueprintEditor> Editor = WeakEditor.Pin();
+            if (!Editor.IsValid())
+            {
+                return false;
+            }
+            return Editor->GetCurrentMode() == FBlueprintEditorApplicationModes::StandardBlueprintEditorMode;
+        })
+    );
+
+    CommandList->MapAction(
+        FN2CToolbarCommand::Get().CopyFlowTextCommand,
+        FExecuteAction::CreateLambda([this, WeakEditor, BlueprintName]()
+        {
+            FN2CLogger::Get().Log(
+                FString::Printf(TEXT("Copy Flow Text triggered for Blueprint: %s"), *BlueprintName),
+                EN2CLogSeverity::Info
+            );
+            ExecuteCopyFlowTextForEditor(WeakEditor);
+        }),
+        FCanExecuteAction::CreateLambda([WeakEditor]()
+        {
+            TSharedPtr<FBlueprintEditor> Editor = WeakEditor.Pin();
+            if (!Editor.IsValid())
+            {
+                return false;
+            }
+            return Editor->GetCurrentMode() == FBlueprintEditorApplicationModes::StandardBlueprintEditorMode;
+        })
+    );
             ExecuteCopyJsonForEditor(WeakEditor);
         }),
         FCanExecuteAction::CreateLambda([WeakEditor]()
@@ -351,6 +542,8 @@ void FN2CEditorIntegration::RegisterToolbarForEditor(TSharedPtr<FBlueprintEditor
                     MenuBuilder.AddMenuEntry(FN2CToolbarCommand::Get().OpenWindowCommand);
                     MenuBuilder.AddMenuEntry(FN2CToolbarCommand::Get().CollectNodesCommand);
                     MenuBuilder.AddMenuEntry(FN2CToolbarCommand::Get().CopyJsonCommand);
+                    MenuBuilder.AddMenuEntry(FN2CToolbarCommand::Get().SaveFlowCommand);
+                    MenuBuilder.AddMenuEntry(FN2CToolbarCommand::Get().CopyFlowTextCommand);
 
                     return MenuBuilder.MakeWidget();
                 }),
