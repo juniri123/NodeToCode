@@ -208,6 +208,7 @@ void UN2CLLMModule::OpenTranslationFolder(bool& Success)
     
 }
 
+// N2C 확장: Flow JSON 임시 보관
 void UN2CLLMModule::SetPendingFlowJson(const FString& InFlowJson)
 {
     PendingFlowJson = InFlowJson;
@@ -231,6 +232,7 @@ void UN2CLLMModule::ClearPendingFlowJson()
     bHasPendingFlowJson = false;
 }
 
+// N2C 확장: Flow 그래프 이름 임시 보관
 void UN2CLLMModule::SetPendingFlowGraphName(const FString& InGraphName)
 {
     PendingFlowGraphName = InGraphName;
@@ -254,9 +256,9 @@ void UN2CLLMModule::ClearPendingFlowGraphName()
     bHasPendingFlowGraphName = false;
 }
 
+// N2C 확장: 폴더명 생성에 사용할 CL 번호를 저장
 void UN2CLLMModule::SetPendingBlueprintChangeList(const FString& InChangeList)
 {
-    // 폴더명 생성에 사용할 CL 번호를 저장
     PendingBlueprintChangeList = InChangeList;
     bHasPendingBlueprintChangeList = !PendingBlueprintChangeList.IsEmpty();
 }
@@ -273,13 +275,14 @@ bool UN2CLLMModule::GetPendingBlueprintChangeList(FString& OutChangeList) const
     return true;
 }
 
+// N2C 확장: 저장 완료 후 버퍼 정리
 void UN2CLLMModule::ClearPendingBlueprintChangeList()
 {
-    // 저장 완료 후 버퍼 정리
     PendingBlueprintChangeList.Reset();
     bHasPendingBlueprintChangeList = false;
 }
 
+// N2C 확장: Flow 텍스트 임시 보관
 void UN2CLLMModule::SetPendingFlowText(const FString& InFlowText)
 {
     PendingFlowText = InFlowText;
@@ -303,6 +306,7 @@ void UN2CLLMModule::ClearPendingFlowText()
     bHasPendingFlowText = false;
 }
 
+// N2C 확장: Flow 파일 저장을 포함한 저장 처리
 bool UN2CLLMModule::SaveTranslationToDisk(const FN2CTranslationResponse& Response, const FN2CBlueprint& Blueprint)
 {
     // Get blueprint name from metadata
@@ -325,7 +329,7 @@ bool UN2CLLMModule::SaveTranslationToDisk(const FN2CTranslationResponse& Respons
     // Store the path for later reference
     LatestTranslationPath = RootPath;
 
-    // flow.json 저장
+    // flow.json 저장 (N2C 확장)
     FString FlowJson;
     if (GetPendingFlowJson(FlowJson))
     {
@@ -347,7 +351,7 @@ bool UN2CLLMModule::SaveTranslationToDisk(const FN2CTranslationResponse& Respons
         ClearPendingFlowJson();
     }
 
-    // flow.txt 저장
+    // flow.txt 저장 (N2C 확장)
     FString FlowText;
     if (GetPendingFlowText(FlowText))
     {
@@ -505,9 +509,10 @@ bool UN2CLLMModule::SaveTranslationToDisk(const FN2CTranslationResponse& Respons
     return true;
 }
 
+// N2C 확장: CL 우선, 없으면 타임스탬프 기반 폴더 생성
 FString UN2CLLMModule::GenerateTranslationRootPath(const FString& BlueprintName) const
 {
-    // CL이 있으면 CL 기반, 없으면 타임스탬프 기반
+    // CL 우선, 없으면 타임스탬프 기반 (N2C 확장)
     FString Suffix;
     FString ChangeList;
     if (GetPendingBlueprintChangeList(ChangeList))

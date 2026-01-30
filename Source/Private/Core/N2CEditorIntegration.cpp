@@ -41,6 +41,7 @@ FN2CEditorIntegration& FN2CEditorIntegration::Get()
 
 namespace
 {
+    // N2C 확장: 소스컨트롤 CL 식별자 추출
     FString GetBlueprintChangeListNumber(const UBlueprint* Blueprint)
     {
         if (!Blueprint || !Blueprint->GetOutermost())
@@ -184,6 +185,7 @@ void FN2CEditorIntegration::ExecuteCopyJsonForEditor(TWeakPtr<FBlueprintEditor> 
     }
 }
 
+// N2C 확장: Flow 파일 즉시 저장
 void FN2CEditorIntegration::ExecuteSaveFlowForEditor(TWeakPtr<FBlueprintEditor> InEditor)
 {
     // Flow 파일을 즉시 저장하는 툴바 액션
@@ -310,6 +312,7 @@ void FN2CEditorIntegration::ExecuteSaveFlowForEditor(TWeakPtr<FBlueprintEditor> 
     FSlateNotificationManager::Get().AddNotification(Info);
 }
 
+// N2C 확장: Flow 텍스트 클립보드 복사
 void FN2CEditorIntegration::ExecuteCopyFlowTextForEditor(TWeakPtr<FBlueprintEditor> InEditor)
 {
     // Flow 텍스트를 클립보드에 복사하는 툴바 액션
@@ -544,7 +547,19 @@ void FN2CEditorIntegration::RegisterToolbarForEditor(TSharedPtr<FBlueprintEditor
             FN2CLogger::Get().Log(
                 FString::Printf(TEXT("Copy Blueprint JSON triggered for Blueprint: %s"), *BlueprintName),
                 EN2CLogSeverity::Info
-      );
+            );
+            ExecuteCopyJsonForEditor(WeakEditor);
+        }),
+        FCanExecuteAction::CreateLambda([WeakEditor]()
+        {
+            TSharedPtr<FBlueprintEditor> Editor = WeakEditor.Pin();
+            if (!Editor.IsValid())
+            {
+                return false;
+            }
+            return Editor->GetCurrentMode() == FBlueprintEditorApplicationModes::StandardBlueprintEditorMode;
+        })
+    );
 
     CommandList->MapAction(
         FN2CToolbarCommand::Get().SaveFlowCommand,
@@ -576,18 +591,6 @@ void FN2CEditorIntegration::RegisterToolbarForEditor(TSharedPtr<FBlueprintEditor
                 EN2CLogSeverity::Info
             );
             ExecuteCopyFlowTextForEditor(WeakEditor);
-        }),
-        FCanExecuteAction::CreateLambda([WeakEditor]()
-        {
-            TSharedPtr<FBlueprintEditor> Editor = WeakEditor.Pin();
-            if (!Editor.IsValid())
-            {
-                return false;
-            }
-            return Editor->GetCurrentMode() == FBlueprintEditorApplicationModes::StandardBlueprintEditorMode;
-        })
-    );
-            ExecuteCopyJsonForEditor(WeakEditor);
         }),
         FCanExecuteAction::CreateLambda([WeakEditor]()
         {
