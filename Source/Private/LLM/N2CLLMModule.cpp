@@ -377,7 +377,7 @@ bool UN2CLLMModule::SaveTranslationToDisk(const FN2CTranslationResponse& Respons
             const bool bHasGraphName = GetPendingFlowGraphName(GraphName);
             const FString SafeGraphName = bHasGraphName ? FPaths::MakeValidFileName(GraphName) : FString();
             const FString FlowFileName = bHasGraphName && !SafeGraphName.IsEmpty()
-                ? FString::Printf(TEXT("flow_%s.json"), *SafeGraphName)
+                ? FString::Printf(TEXT("%s_flow.json"), *SafeGraphName)
                 : TEXT("flow.json");
             const FString FlowFilePath = FPaths::Combine(FlowDir, FlowFileName);
             if (!FFileHelper::SaveStringToFile(FlowJson, *FlowFilePath))
@@ -399,7 +399,7 @@ bool UN2CLLMModule::SaveTranslationToDisk(const FN2CTranslationResponse& Respons
             const bool bHasGraphName = GetPendingFlowGraphName(GraphName);
             const FString SafeGraphName = bHasGraphName ? FPaths::MakeValidFileName(GraphName) : FString();
             const FString FlowTextName = bHasGraphName && !SafeGraphName.IsEmpty()
-                ? FString::Printf(TEXT("flow_%s.txt"), *SafeGraphName)
+                ? FString::Printf(TEXT("%s_flow.txt"), *SafeGraphName)
                 : TEXT("flow.txt");
             const FString FlowTextPath = FPaths::Combine(FlowDir, FlowTextName);
             if (!FFileHelper::SaveStringToFile(FlowText, *FlowTextPath))

@@ -308,8 +308,8 @@ void FN2CEditorIntegration::ExecuteSaveFlowForEditor(TWeakPtr<FBlueprintEditor> 
     }
 
     // 그래프별 파일명으로 저장
-    const FString FlowJsonPath = FPaths::Combine(FlowDir, FString::Printf(TEXT("flow_%s.json"), *SafeGraphName));
-    const FString FlowTextPath = FPaths::Combine(FlowDir, FString::Printf(TEXT("flow_%s.txt"), *SafeGraphName));
+    const FString FlowJsonPath = FPaths::Combine(FlowDir, FString::Printf(TEXT("%s_flow.json"), *SafeGraphName));
+    const FString FlowTextPath = FPaths::Combine(FlowDir, FString::Printf(TEXT("%s_flow.txt"), *SafeGraphName));
     const FString ParsedJsonPath = FPaths::Combine(FlowDir, FString::Printf(TEXT("%s_parsed.json"), *SafeGraphName));
 
     if (!FFileHelper::SaveStringToFile(FlowJson, *FlowJsonPath))
