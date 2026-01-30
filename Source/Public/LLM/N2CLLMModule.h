@@ -71,6 +71,13 @@ public:
     /** Save translation files to disk */
     bool SaveTranslationToDisk(const FN2CTranslationResponse& Response, const FN2CBlueprint& Blueprint);
 
+    /** Store flow JSON to be saved with the translation output */
+    void SetPendingFlowJson(const FString& InFlowJson);
+    /** Retrieve pending flow JSON if available */
+    bool GetPendingFlowJson(FString& OutFlowJson) const;
+    /** Clear pending flow JSON */
+    void ClearPendingFlowJson();
+
 private:
     /** Generate file paths for translation */
     FString GenerateTranslationRootPath(const FString& BlueprintName) const;
@@ -119,6 +126,10 @@ private:
     /** Path to the latest translation */
     UPROPERTY()
     FString LatestTranslationPath;
+
+    /** Pending flow JSON captured at request time */
+    FString PendingFlowJson;
+    bool bHasPendingFlowJson = false;
     
     /** Initialization state */
     bool bIsInitialized;

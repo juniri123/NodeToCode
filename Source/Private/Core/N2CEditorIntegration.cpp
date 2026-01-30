@@ -7,6 +7,7 @@
 #include "BlueprintEditorModule.h"
 #include "Code Editor/Models/N2CCodeLanguage.h"
 #include "Core/N2CEditorWindow.h"
+#include "Core/N2CFlowBuilder.h"
 #include "Core/N2CNodeTranslator.h"
 #include "Core/N2CSerializer.h"
 #include "Core/N2CSettings.h"
@@ -485,6 +486,18 @@ void FN2CEditorIntegration::ExecuteCollectNodesForEditor(TWeakPtr<FBlueprintEdit
                 {                                                                                                                                                                                             
                     FN2CLogger::Get().Log(TEXT("JSON Output:"), EN2CLogSeverity::Debug);                                                                                                                       
                     FN2CLogger::Get().Log(JsonOutput, EN2CLogSeverity::Debug);
+
+                    FString FlowJson;
+                    FString FlowError;
+                    if (FN2CFlowBuilder::BuildFlowJsonFromNodes(CollectedNodes, FlowJson, FlowError))
+                    {
+                        LLMModule->SetPendingFlowJson(FlowJson);
+                        FN2CLogger::Get().Log(TEXT("Flow JSON generated successfully"), EN2CLogSeverity::Info);
+                    }
+                    else
+                    {
+                        FN2CLogger::Get().LogWarning(FString::Printf(TEXT("Failed to build flow JSON: %s"), *FlowError));
+                    }
                     
                     if (LLMModule->Initialize())
                     {

@@ -208,6 +208,29 @@ void UN2CLLMModule::OpenTranslationFolder(bool& Success)
     
 }
 
+void UN2CLLMModule::SetPendingFlowJson(const FString& InFlowJson)
+{
+    PendingFlowJson = InFlowJson;
+    bHasPendingFlowJson = !PendingFlowJson.IsEmpty();
+}
+
+bool UN2CLLMModule::GetPendingFlowJson(FString& OutFlowJson) const
+{
+    if (!bHasPendingFlowJson || PendingFlowJson.IsEmpty())
+    {
+        return false;
+    }
+
+    OutFlowJson = PendingFlowJson;
+    return true;
+}
+
+void UN2CLLMModule::ClearPendingFlowJson()
+{
+    PendingFlowJson.Reset();
+    bHasPendingFlowJson = false;
+}
+
 bool UN2CLLMModule::SaveTranslationToDisk(const FN2CTranslationResponse& Response, const FN2CBlueprint& Blueprint)
 {
     // Get blueprint name from metadata
@@ -229,6 +252,22 @@ bool UN2CLLMModule::SaveTranslationToDisk(const FN2CTranslationResponse& Respons
     
     // Store the path for later reference
     LatestTranslationPath = RootPath;
+
+    // Save flow JSON if available
+    FString FlowJson;
+    if (GetPendingFlowJson(FlowJson))
+    {
+        const FString FlowDir = FPaths::Combine(RootPath, TEXT("python"));
+        if (EnsureDirectoryExists(FlowDir))
+        {
+            const FString FlowFilePath = FPaths::Combine(FlowDir, TEXT("flow.json"));
+            if (!FFileHelper::SaveStringToFile(FlowJson, *FlowFilePath))
+            {
+                FN2CLogger::Get().LogWarning(FString::Printf(TEXT("Failed to save flow JSON: %s"), *FlowFilePath));
+            }
+        }
+        ClearPendingFlowJson();
+    }
     
     // Save the Blueprint JSON (pretty-printed)
     FString JsonFileName = FString::Printf(TEXT("N2C_BP_%s.json"), *FPaths::GetBaseFilename(RootPath));
