@@ -17,8 +17,12 @@
 #include "LLM/N2CLLMTypes.h"
 #include "Framework/Notifications/NotificationManager.h"
 #include "Misc/FileHelper.h"
+#include "Misc/PackageName.h"
 #include "Misc/Paths.h"
 #include "Widgets/Notifications/SNotificationList.h"
+#include "ISourceControlModule.h"
+#include "ISourceControlProvider.h"
+#include "ISourceControlState.h"
 
 #if PLATFORM_WINDOWS
 #include "Windows/WindowsPlatformApplicationMisc.h"
@@ -32,6 +36,47 @@ FN2CEditorIntegration& FN2CEditorIntegration::Get()
 {
     static FN2CEditorIntegration Instance;
     return Instance;
+}
+
+namespace
+{
+    FString GetBlueprintChangeListNumber(const UBlueprint* Blueprint)
+    {
+        if (!Blueprint || !Blueprint->GetOutermost())
+        {
+            return FString();
+        }
+
+        if (!ISourceControlModule::Get().IsEnabled())
+        {
+            return FString();
+        }
+
+        ISourceControlProvider& Provider = ISourceControlModule::Get().GetProvider();
+        if (!Provider.IsAvailable())
+        {
+            return FString();
+        }
+
+        const FString PackageName = Blueprint->GetOutermost()->GetName();
+        const FString Filename = FPackageName::LongPackageNameToFilename(
+            PackageName,
+            FPackageName::GetAssetPackageExtension()
+        );
+
+        const FSourceControlStatePtr State = Provider.GetState(Filename, EStateCacheUsage::ForceUpdate);
+        if (!State.IsValid())
+        {
+            return FString();
+        }
+
+        if (State->GetChangelist().IsValid())
+        {
+            return FString::FromInt(State->GetChangelist()->GetNumber());
+        }
+
+        return FString();
+    }
 }
 
 void FN2CEditorIntegration::ExecuteCopyJsonForEditor(TWeakPtr<FBlueprintEditor> InEditor)
@@ -131,6 +176,7 @@ void FN2CEditorIntegration::ExecuteCopyJsonForEditor(TWeakPtr<FBlueprintEditor> 
 
 void FN2CEditorIntegration::ExecuteSaveFlowForEditor(TWeakPtr<FBlueprintEditor> InEditor)
 {
+    // Flow 파일을 즉시 저장하는 툴바 액션
     // Get the editor pointer
     TSharedPtr<FBlueprintEditor> Editor = InEditor.Pin();
     if (!Editor.IsValid())
@@ -147,10 +193,16 @@ void FN2CEditorIntegration::ExecuteSaveFlowForEditor(TWeakPtr<FBlueprintEditor> 
         return;
     }
 
+    // 저장 폴더 이름 구성에 사용할 Blueprint/CL 정보
     FString BlueprintName = TEXT("Unknown");
     if (UBlueprint* Blueprint = Cast<UBlueprint>(FocusedGraph->GetOuter()))
     {
         BlueprintName = Blueprint->GetName();
+        const FString ChangeList = GetBlueprintChangeListNumber(Blueprint);
+        if (!ChangeList.IsEmpty())
+        {
+            UN2CLLMModule::Get()->SetPendingBlueprintChangeList(ChangeList);
+        }
     }
 
     // Collect nodes
@@ -162,6 +214,7 @@ void FN2CEditorIntegration::ExecuteSaveFlowForEditor(TWeakPtr<FBlueprintEditor> 
         return;
     }
 
+    // Flow JSON 생성
     FString FlowJson;
     FString FlowJsonError;
     if (!FN2CFlowBuilder::BuildFlowJsonFromNodes(CollectedNodes, FlowJson, FlowJsonError))
@@ -170,6 +223,7 @@ void FN2CEditorIntegration::ExecuteSaveFlowForEditor(TWeakPtr<FBlueprintEditor> 
         return;
     }
 
+    // Flow Text 생성
     FString FlowText;
     FString FlowTextError;
     if (!FN2CFlowBuilder::BuildFlowTextFromNodes(CollectedNodes, FlowText, FlowTextError))
@@ -190,8 +244,26 @@ void FN2CEditorIntegration::ExecuteSaveFlowForEditor(TWeakPtr<FBlueprintEditor> 
         BasePath = FPaths::ProjectSavedDir() / TEXT("NodeToCode") / TEXT("Translations");
     }
 
-    const FString Timestamp = FDateTime::Now().ToString(TEXT("%Y-%m-%d-%H.%M.%S"));
-    const FString RootPath = FPaths::Combine(BasePath, FString::Printf(TEXT("%s_%s"), *BlueprintName, *Timestamp));
+    const FString SafeGraphName = FPaths::MakeValidFileName(GraphName);
+    // 폴더 suffix는 CL 우선, 없으면 타임스탬프
+    FString Suffix;
+    if (UBlueprint* Blueprint = Cast<UBlueprint>(FocusedGraph->GetOuter()))
+    {
+        const FString ChangeList = GetBlueprintChangeListNumber(Blueprint);
+        if (!ChangeList.IsEmpty())
+        {
+            Suffix = FString::Printf(TEXT("CL%s"), *ChangeList);
+        }
+    }
+    if (Suffix.IsEmpty())
+    {
+        const FString Timestamp = FDateTime::Now().ToString(TEXT("%Y-%m-%d-%H.%M.%S"));
+        Suffix = Timestamp;
+    }
+    const FString RootPath = FPaths::Combine(
+        BasePath,
+        FString::Printf(TEXT("%s_%s_%s"), *BlueprintName, *SafeGraphName, *Suffix)
+    );
     const FString FlowDir = FPaths::Combine(RootPath, TEXT("python"));
 
     // Ensure directory exists
@@ -202,8 +274,9 @@ void FN2CEditorIntegration::ExecuteSaveFlowForEditor(TWeakPtr<FBlueprintEditor> 
         return;
     }
 
-    const FString FlowJsonPath = FPaths::Combine(FlowDir, TEXT("flow.json"));
-    const FString FlowTextPath = FPaths::Combine(FlowDir, TEXT("flow.txt"));
+    // 그래프별 파일명으로 저장
+    const FString FlowJsonPath = FPaths::Combine(FlowDir, FString::Printf(TEXT("flow_%s.json"), *SafeGraphName));
+    const FString FlowTextPath = FPaths::Combine(FlowDir, FString::Printf(TEXT("flow_%s.txt"), *SafeGraphName));
 
     if (!FFileHelper::SaveStringToFile(FlowJson, *FlowJsonPath))
     {
@@ -228,6 +301,7 @@ void FN2CEditorIntegration::ExecuteSaveFlowForEditor(TWeakPtr<FBlueprintEditor> 
 
 void FN2CEditorIntegration::ExecuteCopyFlowTextForEditor(TWeakPtr<FBlueprintEditor> InEditor)
 {
+    // Flow 텍스트를 클립보드에 복사하는 툴바 액션
     // Get the editor pointer
     TSharedPtr<FBlueprintEditor> Editor = InEditor.Pin();
     if (!Editor.IsValid())
@@ -679,6 +753,8 @@ void FN2CEditorIntegration::ExecuteCollectNodesForEditor(TWeakPtr<FBlueprintEdit
                 {                                                                                                                                                                                             
                     FN2CLogger::Get().Log(TEXT("JSON Output:"), EN2CLogSeverity::Debug);                                                                                                                       
                     FN2CLogger::Get().Log(JsonOutput, EN2CLogSeverity::Debug);
+
+                    LLMModule->SetPendingFlowGraphName(GraphName);
 
                     FString FlowJson;
                     FString FlowError;

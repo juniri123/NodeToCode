@@ -62,6 +62,7 @@ void FN2CToolbarCommand::RegisterCommands()
     FInputChord()
 );
 
+    // Flow 파일 저장
     UI_COMMAND(
     SaveFlowCommand,
     "Save Flow Files",
@@ -70,6 +71,7 @@ void FN2CToolbarCommand::RegisterCommands()
     FInputChord()
 );
 
+    // Flow 텍스트 복사
     UI_COMMAND(
     CopyFlowTextCommand,
     "Copy Flow Text",

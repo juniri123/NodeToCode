@@ -231,6 +231,55 @@ void UN2CLLMModule::ClearPendingFlowJson()
     bHasPendingFlowJson = false;
 }
 
+void UN2CLLMModule::SetPendingFlowGraphName(const FString& InGraphName)
+{
+    PendingFlowGraphName = InGraphName;
+    bHasPendingFlowGraphName = !PendingFlowGraphName.IsEmpty();
+}
+
+bool UN2CLLMModule::GetPendingFlowGraphName(FString& OutGraphName) const
+{
+    if (!bHasPendingFlowGraphName || PendingFlowGraphName.IsEmpty())
+    {
+        return false;
+    }
+
+    OutGraphName = PendingFlowGraphName;
+    return true;
+}
+
+void UN2CLLMModule::ClearPendingFlowGraphName()
+{
+    PendingFlowGraphName.Reset();
+    bHasPendingFlowGraphName = false;
+}
+
+void UN2CLLMModule::SetPendingBlueprintChangeList(const FString& InChangeList)
+{
+    // 폴더명 생성에 사용할 CL 번호를 저장
+    PendingBlueprintChangeList = InChangeList;
+    bHasPendingBlueprintChangeList = !PendingBlueprintChangeList.IsEmpty();
+}
+
+bool UN2CLLMModule::GetPendingBlueprintChangeList(FString& OutChangeList) const
+{
+    // 저장 시점에 CL 값을 읽어온다
+    if (!bHasPendingBlueprintChangeList || PendingBlueprintChangeList.IsEmpty())
+    {
+        return false;
+    }
+
+    OutChangeList = PendingBlueprintChangeList;
+    return true;
+}
+
+void UN2CLLMModule::ClearPendingBlueprintChangeList()
+{
+    // 저장 완료 후 버퍼 정리
+    PendingBlueprintChangeList.Reset();
+    bHasPendingBlueprintChangeList = false;
+}
+
 void UN2CLLMModule::SetPendingFlowText(const FString& InFlowText)
 {
     PendingFlowText = InFlowText;
@@ -283,7 +332,13 @@ bool UN2CLLMModule::SaveTranslationToDisk(const FN2CTranslationResponse& Respons
         const FString FlowDir = FPaths::Combine(RootPath, TEXT("python"));
         if (EnsureDirectoryExists(FlowDir))
         {
-            const FString FlowFilePath = FPaths::Combine(FlowDir, TEXT("flow.json"));
+            FString GraphName;
+            const bool bHasGraphName = GetPendingFlowGraphName(GraphName);
+            const FString SafeGraphName = bHasGraphName ? FPaths::MakeValidFileName(GraphName) : FString();
+            const FString FlowFileName = bHasGraphName && !SafeGraphName.IsEmpty()
+                ? FString::Printf(TEXT("flow_%s.json"), *SafeGraphName)
+                : TEXT("flow.json");
+            const FString FlowFilePath = FPaths::Combine(FlowDir, FlowFileName);
             if (!FFileHelper::SaveStringToFile(FlowJson, *FlowFilePath))
             {
                 FN2CLogger::Get().LogWarning(FString::Printf(TEXT("Failed to save flow JSON: %s"), *FlowFilePath));
@@ -299,7 +354,13 @@ bool UN2CLLMModule::SaveTranslationToDisk(const FN2CTranslationResponse& Respons
         const FString FlowDir = FPaths::Combine(RootPath, TEXT("python"));
         if (EnsureDirectoryExists(FlowDir))
         {
-            const FString FlowTextPath = FPaths::Combine(FlowDir, TEXT("flow.txt"));
+            FString GraphName;
+            const bool bHasGraphName = GetPendingFlowGraphName(GraphName);
+            const FString SafeGraphName = bHasGraphName ? FPaths::MakeValidFileName(GraphName) : FString();
+            const FString FlowTextName = bHasGraphName && !SafeGraphName.IsEmpty()
+                ? FString::Printf(TEXT("flow_%s.txt"), *SafeGraphName)
+                : TEXT("flow.txt");
+            const FString FlowTextPath = FPaths::Combine(FlowDir, FlowTextName);
             if (!FFileHelper::SaveStringToFile(FlowText, *FlowTextPath))
             {
                 FN2CLogger::Get().LogWarning(FString::Printf(TEXT("Failed to save flow text: %s"), *FlowTextPath));
@@ -307,6 +368,9 @@ bool UN2CLLMModule::SaveTranslationToDisk(const FN2CTranslationResponse& Respons
         }
         ClearPendingFlowText();
     }
+
+    ClearPendingFlowGraphName();
+    ClearPendingBlueprintChangeList();
     
     // Save the Blueprint JSON (pretty-printed)
     FString JsonFileName = FString::Printf(TEXT("N2C_BP_%s.json"), *FPaths::GetBaseFilename(RootPath));
@@ -443,12 +507,22 @@ bool UN2CLLMModule::SaveTranslationToDisk(const FN2CTranslationResponse& Respons
 
 FString UN2CLLMModule::GenerateTranslationRootPath(const FString& BlueprintName) const
 {
-    // Get current date/time
-    FDateTime Now = FDateTime::Now();
-    FString Timestamp = Now.ToString(TEXT("%Y-%m-%d-%H.%M.%S"));
+    // CL이 있으면 CL 기반, 없으면 타임스탬프 기반
+    FString Suffix;
+    FString ChangeList;
+    if (GetPendingBlueprintChangeList(ChangeList))
+    {
+        Suffix = FString::Printf(TEXT("CL%s"), *ChangeList);
+    }
+    else
+    {
+        // Get current date/time
+        const FDateTime Now = FDateTime::Now();
+        Suffix = Now.ToString(TEXT("%Y-%m-%d-%H.%M.%S"));
+    }
     
     // Create folder name
-    FString FolderName = FString::Printf(TEXT("%s_%s"), *BlueprintName, *Timestamp);
+    FString FolderName = FString::Printf(TEXT("%s_%s"), *BlueprintName, *Suffix);
 
     // Get the saved translations base path
     FString BasePath = GetTranslationBasePath();
