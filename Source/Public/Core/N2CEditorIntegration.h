@@ -62,6 +62,9 @@ private:
 
     /** Execute copy flow text to clipboard for a specific editor */
     void ExecuteCopyFlowTextForEditor(TWeakPtr<FBlueprintEditor> InEditor);
+
+    /** Execute copy flow JSON to clipboard for a specific editor */
+    void ExecuteCopyFlowJsonForEditor(TWeakPtr<FBlueprintEditor> InEditor);
     
     /** Handle asset editor opened callback */
     void HandleAssetEditorOpened(UObject* Asset, IAssetEditorInstance* EditorInstance);

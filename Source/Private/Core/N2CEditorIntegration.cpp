@@ -13,6 +13,7 @@
 #include "Core/N2CSettings.h"
 #include "Core/N2CToolbarCommand.h"
 #include "HAL/PlatformFileManager.h"
+#include "HAL/PlatformProcess.h"
 #include "LLM/N2CLLMModule.h"
 #include "LLM/N2CLLMTypes.h"
 #include "Framework/Notifications/NotificationManager.h"
@@ -307,6 +308,9 @@ void FN2CEditorIntegration::ExecuteSaveFlowForEditor(TWeakPtr<FBlueprintEditor> 
     Info.FadeOutDuration = 0.5f;
     Info.ExpireDuration = 2.0f;
     FSlateNotificationManager::Get().AddNotification(Info);
+
+    // 저장 폴더 열기
+    FPlatformProcess::ExploreFolder(*RootPath);
 }
 
 // N2C 확장: Flow 텍스트 클립보드 복사
@@ -352,6 +356,57 @@ void FN2CEditorIntegration::ExecuteCopyFlowTextForEditor(TWeakPtr<FBlueprintEdit
 
         // Show notification
         FNotificationInfo Info(NSLOCTEXT("NodeToCode", "FlowTextCopied", "Flow text copied to clipboard"));
+        Info.bFireAndForget = true;
+        Info.FadeInDuration = 0.2f;
+        Info.FadeOutDuration = 0.5f;
+        Info.ExpireDuration = 2.0f;
+        FSlateNotificationManager::Get().AddNotification(Info);
+    }
+}
+
+// N2C 확장: Flow JSON 클립보드 복사
+void FN2CEditorIntegration::ExecuteCopyFlowJsonForEditor(TWeakPtr<FBlueprintEditor> InEditor)
+{
+    // Flow JSON을 클립보드에 복사하는 툴바 액션
+    // Get the editor pointer
+    TSharedPtr<FBlueprintEditor> Editor = InEditor.Pin();
+    if (!Editor.IsValid())
+    {
+        FN2CLogger::Get().LogError(TEXT("Invalid Blueprint Editor pointer"));
+        return;
+    }
+
+    // Get focused graph
+    UEdGraph* FocusedGraph = Editor->GetFocusedGraph();
+    if (!FocusedGraph)
+    {
+        FN2CLogger::Get().LogError(TEXT("No focused graph in Blueprint Editor"));
+        return;
+    }
+
+    // Collect nodes
+    FN2CNodeCollector& Collector = FN2CNodeCollector::Get();
+    TArray<UK2Node*> CollectedNodes;
+    if (!Collector.CollectNodesFromGraph(FocusedGraph, CollectedNodes))
+    {
+        FN2CLogger::Get().LogError(TEXT("Failed to collect nodes for flow JSON"));
+        return;
+    }
+
+    FString FlowJson;
+    FString FlowJsonError;
+    if (!FN2CFlowBuilder::BuildFlowJsonFromNodes(CollectedNodes, FlowJson, FlowJsonError))
+    {
+        FN2CLogger::Get().LogError(FString::Printf(TEXT("Failed to build flow JSON: %s"), *FlowJsonError));
+        return;
+    }
+
+    if (!FlowJson.IsEmpty())
+    {
+        FPlatformApplicationMisc::ClipboardCopy(*FlowJson);
+
+        // Show notification
+        FNotificationInfo Info(NSLOCTEXT("NodeToCode", "FlowJsonCopied", "Flow JSON copied to clipboard"));
         Info.bFireAndForget = true;
         Info.FadeInDuration = 0.2f;
         Info.FadeOutDuration = 0.5f;
@@ -563,10 +618,31 @@ void FN2CEditorIntegration::RegisterToolbarForEditor(TSharedPtr<FBlueprintEditor
         FExecuteAction::CreateLambda([this, WeakEditor, BlueprintName]()
         {
             FN2CLogger::Get().Log(
-                FString::Printf(TEXT("Save Flow Files triggered for Blueprint: %s"), *BlueprintName),
+                FString::Printf(TEXT("Save Flow Json/Text triggered for Blueprint: %s"), *BlueprintName),
                 EN2CLogSeverity::Info
             );
             ExecuteSaveFlowForEditor(WeakEditor);
+        }),
+        FCanExecuteAction::CreateLambda([WeakEditor]()
+        {
+            TSharedPtr<FBlueprintEditor> Editor = WeakEditor.Pin();
+            if (!Editor.IsValid())
+            {
+                return false;
+            }
+            return Editor->GetCurrentMode() == FBlueprintEditorApplicationModes::StandardBlueprintEditorMode;
+        })
+    );
+
+    CommandList->MapAction(
+        FN2CToolbarCommand::Get().CopyFlowJsonCommand,
+        FExecuteAction::CreateLambda([this, WeakEditor, BlueprintName]()
+        {
+            FN2CLogger::Get().Log(
+                FString::Printf(TEXT("Copy Flow Json triggered for Blueprint: %s"), *BlueprintName),
+                EN2CLogSeverity::Info
+            );
+            ExecuteCopyFlowJsonForEditor(WeakEditor);
         }),
         FCanExecuteAction::CreateLambda([WeakEditor]()
         {
@@ -628,6 +704,7 @@ void FN2CEditorIntegration::RegisterToolbarForEditor(TSharedPtr<FBlueprintEditor
                     MenuBuilder.AddMenuEntry(FN2CToolbarCommand::Get().CollectNodesCommand);
                     MenuBuilder.AddMenuEntry(FN2CToolbarCommand::Get().CopyJsonCommand);
                     MenuBuilder.AddMenuEntry(FN2CToolbarCommand::Get().SaveFlowCommand);
+                    MenuBuilder.AddMenuEntry(FN2CToolbarCommand::Get().CopyFlowJsonCommand);
                     MenuBuilder.AddMenuEntry(FN2CToolbarCommand::Get().CopyFlowTextCommand);
 
                     return MenuBuilder.MakeWidget();
