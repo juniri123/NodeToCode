@@ -276,7 +276,7 @@ bool UN2CLLMModule::SaveTranslationToDisk(const FN2CTranslationResponse& Respons
     // Store the path for later reference
     LatestTranslationPath = RootPath;
 
-    // Save flow JSON if available
+    // flow.json 저장
     FString FlowJson;
     if (GetPendingFlowJson(FlowJson))
     {
@@ -292,7 +292,7 @@ bool UN2CLLMModule::SaveTranslationToDisk(const FN2CTranslationResponse& Respons
         ClearPendingFlowJson();
     }
 
-    // Save flow text if available
+    // flow.txt 저장
     FString FlowText;
     if (GetPendingFlowText(FlowText))
     {

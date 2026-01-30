@@ -71,18 +71,18 @@ public:
     /** Save translation files to disk */
     bool SaveTranslationToDisk(const FN2CTranslationResponse& Response, const FN2CBlueprint& Blueprint);
 
-    /** Store flow JSON to be saved with the translation output */
+    /** flow.json 저장을 위한 임시 버퍼 */
     void SetPendingFlowJson(const FString& InFlowJson);
-    /** Retrieve pending flow JSON if available */
+    /** flow.json 버퍼 조회 */
     bool GetPendingFlowJson(FString& OutFlowJson) const;
-    /** Clear pending flow JSON */
+    /** flow.json 버퍼 초기화 */
     void ClearPendingFlowJson();
 
-    /** Store flow text to be saved with the translation output */
+    /** flow.txt 저장을 위한 임시 버퍼 */
     void SetPendingFlowText(const FString& InFlowText);
-    /** Retrieve pending flow text if available */
+    /** flow.txt 버퍼 조회 */
     bool GetPendingFlowText(FString& OutFlowText) const;
-    /** Clear pending flow text */
+    /** flow.txt 버퍼 초기화 */
     void ClearPendingFlowText();
 
 private:
@@ -134,10 +134,11 @@ private:
     UPROPERTY()
     FString LatestTranslationPath;
 
-    /** Pending flow JSON captured at request time */
+    /** 요청 시점의 flow.json */
     FString PendingFlowJson;
     bool bHasPendingFlowJson = false;
 
+    /** 요청 시점의 flow.txt */
     FString PendingFlowText;
     bool bHasPendingFlowText = false;
     

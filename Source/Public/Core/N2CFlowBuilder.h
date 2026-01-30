@@ -27,7 +27,9 @@ public:
     static bool BuildFlowDataFromNodes(const TArray<UK2Node*>& Nodes, FN2CFlowData& OutData, FString& OutError);
     static bool BuildFlowJsonFromGraph(UEdGraph* Graph, FString& OutJson, FString& OutError);
     static bool BuildFlowJsonFromNodes(const TArray<UK2Node*>& Nodes, FString& OutJson, FString& OutError);
+    /** Flow 텍스트를 그래프에서 생성 */
     static bool BuildFlowTextFromGraph(UEdGraph* Graph, FString& OutText, FString& OutError);
+    /** Flow 텍스트를 노드 배열에서 생성 */
     static bool BuildFlowTextFromNodes(const TArray<UK2Node*>& Nodes, FString& OutText, FString& OutError);
 
 private:
@@ -44,5 +46,6 @@ private:
                                      bool bDebug);
 
     static TSharedPtr<FJsonObject> FlowDataToJsonObject(const FN2CFlowData& Data);
+    /** Flow 데이터 -> 텍스트 라인 변환 */
     static TArray<FString> FlowDataToTextLines(const FN2CFlowData& Data);
 };
