@@ -75,13 +75,10 @@ namespace
         if (HistorySize > 0)
         {
             const TSharedPtr<ISourceControlRevision, ESPMode::ThreadSafe> Revision = State->GetHistoryItem(0);
-            if (Revision.IsValid())
+            if (Revision.IsValid()) 
             {
-                const FString Identifier = Revision->GetCheckInIdentifier();
-                if (!Identifier.IsEmpty())
-                {
-                    return Identifier;
-                }
+                const FString Identifier = FString::FromInt(Revision->GetRevisionNumber());
+                return Identifier;
             }
         }
 
@@ -544,7 +541,19 @@ void FN2CEditorIntegration::RegisterToolbarForEditor(TSharedPtr<FBlueprintEditor
             FN2CLogger::Get().Log(
                 FString::Printf(TEXT("Copy Blueprint JSON triggered for Blueprint: %s"), *BlueprintName),
                 EN2CLogSeverity::Info
-      );
+            );
+            ExecuteCopyJsonForEditor(WeakEditor);
+        }),
+        FCanExecuteAction::CreateLambda([WeakEditor]()
+        {
+            TSharedPtr<FBlueprintEditor> Editor = WeakEditor.Pin();
+            if (!Editor.IsValid())
+            {
+                return false;
+            }
+            return Editor->GetCurrentMode() == FBlueprintEditorApplicationModes::StandardBlueprintEditorMode;
+        })
+    );
 
     CommandList->MapAction(
         FN2CToolbarCommand::Get().SaveFlowCommand,
@@ -576,18 +585,6 @@ void FN2CEditorIntegration::RegisterToolbarForEditor(TSharedPtr<FBlueprintEditor
                 EN2CLogSeverity::Info
             );
             ExecuteCopyFlowTextForEditor(WeakEditor);
-        }),
-        FCanExecuteAction::CreateLambda([WeakEditor]()
-        {
-            TSharedPtr<FBlueprintEditor> Editor = WeakEditor.Pin();
-            if (!Editor.IsValid())
-            {
-                return false;
-            }
-            return Editor->GetCurrentMode() == FBlueprintEditorApplicationModes::StandardBlueprintEditorMode;
-        })
-    );
-            ExecuteCopyJsonForEditor(WeakEditor);
         }),
         FCanExecuteAction::CreateLambda([WeakEditor]()
         {
