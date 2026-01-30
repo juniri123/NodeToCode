@@ -47,17 +47,20 @@ namespace
     {
         if (!Blueprint || !Blueprint->GetOutermost())
         {
+            FN2CLogger::Get().LogWarning(TEXT("CL check: invalid Blueprint or package"));
             return FString();
         }
 
         if (!ISourceControlModule::Get().IsEnabled())
         {
+            FN2CLogger::Get().LogWarning(TEXT("CL check: SourceControl disabled"));
             return FString();
         }
 
         ISourceControlProvider& Provider = ISourceControlModule::Get().GetProvider();
         if (!Provider.IsAvailable())
         {
+            FN2CLogger::Get().LogWarning(TEXT("CL check: SourceControl provider unavailable"));
             return FString();
         }
 
@@ -66,22 +69,31 @@ namespace
             PackageName,
             FPackageName::GetAssetPackageExtension()
         );
+        FN2CLogger::Get().Log(FString::Printf(TEXT("CL check: filename=%s"), *Filename), EN2CLogSeverity::Debug);
 
         const FSourceControlStatePtr State = Provider.GetState(Filename, EStateCacheUsage::ForceUpdate);
         if (!State.IsValid())
         {
+            FN2CLogger::Get().LogWarning(TEXT("CL check: state invalid"));
             return FString();
         }
 
         const int32 HistorySize = State->GetHistorySize();
+        FN2CLogger::Get().Log(FString::Printf(TEXT("CL check: history size=%d"), HistorySize), EN2CLogSeverity::Debug);
         if (HistorySize > 0)
         {
             const TSharedPtr<ISourceControlRevision, ESPMode::ThreadSafe> Revision = State->GetHistoryItem(0);
             if (Revision.IsValid()) 
             {
                 const FString Identifier = FString::FromInt(Revision->GetRevisionNumber());
+                FN2CLogger::Get().Log(FString::Printf(TEXT("CL check: revision number=%s"), *Identifier), EN2CLogSeverity::Debug);
                 return Identifier;
             }
+            FN2CLogger::Get().LogWarning(TEXT("CL check: history item invalid"));
+        }
+        else
+        {
+            FN2CLogger::Get().LogWarning(TEXT("CL check: history empty (unsubmitted or no history)"));
         }
 
         return FString();
