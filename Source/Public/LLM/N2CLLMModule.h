@@ -99,6 +99,13 @@ public:
     /** flow.txt 버퍼 초기화 */
     void ClearPendingFlowText();
 
+    /** parsed.json 저장을 위한 임시 버퍼 */
+    void SetPendingParsedJson(const FString& InParsedJson);
+    /** parsed.json 버퍼 조회 */
+    bool GetPendingParsedJson(FString& OutParsedJson) const;
+    /** parsed.json 버퍼 초기화 */
+    void ClearPendingParsedJson();
+
 private:
     /** Save the JSON request payload before sending to the LLM */
     bool SaveRequestJsonToDisk(const FString& JsonInput);
@@ -164,6 +171,10 @@ private:
     /** 요청 시점의 flow.txt */
     FString PendingFlowText;
     bool bHasPendingFlowText = false;
+
+    /** 요청 시점의 parsed.json */
+    FString PendingParsedJson;
+    bool bHasPendingParsedJson = false;
     
     /** Initialization state */
     bool bIsInitialized;

@@ -315,6 +315,30 @@ void UN2CLLMModule::ClearPendingFlowText()
     bHasPendingFlowText = false;
 }
 
+// N2C 확장: parsed.json 임시 보관
+void UN2CLLMModule::SetPendingParsedJson(const FString& InParsedJson)
+{
+    PendingParsedJson = InParsedJson;
+    bHasPendingParsedJson = !PendingParsedJson.IsEmpty();
+}
+
+bool UN2CLLMModule::GetPendingParsedJson(FString& OutParsedJson) const
+{
+    if (!bHasPendingParsedJson || PendingParsedJson.IsEmpty())
+    {
+        return false;
+    }
+
+    OutParsedJson = PendingParsedJson;
+    return true;
+}
+
+void UN2CLLMModule::ClearPendingParsedJson()
+{
+    PendingParsedJson.Reset();
+    bHasPendingParsedJson = false;
+}
+
 // N2C 확장: Flow 파일 저장을 포함한 저장 처리
 bool UN2CLLMModule::SaveTranslationToDisk(const FN2CTranslationResponse& Response, const FN2CBlueprint& Blueprint)
 {
@@ -384,6 +408,28 @@ bool UN2CLLMModule::SaveTranslationToDisk(const FN2CTranslationResponse& Respons
             }
         }
         ClearPendingFlowText();
+    }
+
+    // parsed.json 저장 (N2C 확장)
+    FString ParsedJson;
+    if (GetPendingParsedJson(ParsedJson))
+    {
+        const FString FlowDir = FPaths::Combine(RootPath, TEXT("python"));
+        if (EnsureDirectoryExists(FlowDir))
+        {
+            FString GraphName;
+            const bool bHasGraphName = GetPendingFlowGraphName(GraphName);
+            const FString SafeGraphName = bHasGraphName ? FPaths::MakeValidFileName(GraphName) : FString();
+            const FString ParsedName = bHasGraphName && !SafeGraphName.IsEmpty()
+                ? FString::Printf(TEXT("%s_parsed.json"), *SafeGraphName)
+                : TEXT("parsed.json");
+            const FString ParsedPath = FPaths::Combine(FlowDir, ParsedName);
+            if (!FFileHelper::SaveStringToFile(ParsedJson, *ParsedPath))
+            {
+                FN2CLogger::Get().LogWarning(FString::Printf(TEXT("Failed to save parsed JSON: %s"), *ParsedPath));
+            }
+        }
+        ClearPendingParsedJson();
     }
 
     ClearPendingFlowGraphName();

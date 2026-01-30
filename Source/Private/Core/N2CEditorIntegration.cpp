@@ -8,6 +8,7 @@
 #include "Code Editor/Models/N2CCodeLanguage.h"
 #include "Core/N2CEditorWindow.h"
 #include "Core/N2CFlowBuilder.h"
+#include "Core/N2CParsedDumpBuilder.h"
 #include "Core/N2CNodeTranslator.h"
 #include "Core/N2CSerializer.h"
 #include "Core/N2CSettings.h"
@@ -255,6 +256,15 @@ void FN2CEditorIntegration::ExecuteSaveFlowForEditor(TWeakPtr<FBlueprintEditor> 
         return;
     }
 
+    // parsed.json 생성 (덤프 유사 포맷)
+    FString ParsedJson;
+    FString ParsedJsonError;
+    if (!FN2CParsedDumpBuilder::BuildParsedJsonFromNodes(CollectedNodes, ParsedJson, ParsedJsonError))
+    {
+        FN2CLogger::Get().LogError(FString::Printf(TEXT("Failed to build parsed JSON: %s"), *ParsedJsonError));
+        return;
+    }
+
     // Resolve output root
     const UN2CSettings* Settings = GetDefault<UN2CSettings>();
     FString BasePath;
@@ -300,6 +310,7 @@ void FN2CEditorIntegration::ExecuteSaveFlowForEditor(TWeakPtr<FBlueprintEditor> 
     // 그래프별 파일명으로 저장
     const FString FlowJsonPath = FPaths::Combine(FlowDir, FString::Printf(TEXT("flow_%s.json"), *SafeGraphName));
     const FString FlowTextPath = FPaths::Combine(FlowDir, FString::Printf(TEXT("flow_%s.txt"), *SafeGraphName));
+    const FString ParsedJsonPath = FPaths::Combine(FlowDir, FString::Printf(TEXT("%s_parsed.json"), *SafeGraphName));
 
     if (!FFileHelper::SaveStringToFile(FlowJson, *FlowJsonPath))
     {
@@ -313,8 +324,14 @@ void FN2CEditorIntegration::ExecuteSaveFlowForEditor(TWeakPtr<FBlueprintEditor> 
         return;
     }
 
+    if (!FFileHelper::SaveStringToFile(ParsedJson, *ParsedJsonPath))
+    {
+        FN2CLogger::Get().LogError(FString::Printf(TEXT("Failed to save parsed JSON: %s"), *ParsedJsonPath));
+        return;
+    }
+
     // Show notification
-    FNotificationInfo Info(NSLOCTEXT("NodeToCode", "FlowSaved", "Flow files saved"));
+    FNotificationInfo Info(NSLOCTEXT("NodeToCode", "FlowSaved", "Flow/Parsed files saved"));
     Info.bFireAndForget = true;
     Info.FadeInDuration = 0.2f;
     Info.FadeOutDuration = 0.5f;
@@ -940,3 +957,14 @@ void FN2CEditorIntegration::ExecuteCollectNodesForEditor(TWeakPtr<FBlueprintEdit
         }
     }
 }
+                    FString ParsedJson;
+                    FString ParsedJsonError;
+                    if (FN2CParsedDumpBuilder::BuildParsedJsonFromNodes(CollectedNodes, ParsedJson, ParsedJsonError))
+                    {
+                        LLMModule->SetPendingParsedJson(ParsedJson);
+                        FN2CLogger::Get().Log(TEXT("Parsed JSON generated successfully"), EN2CLogSeverity::Info);
+                    }
+                    else
+                    {
+                        FN2CLogger::Get().LogWarning(FString::Printf(TEXT("Failed to build parsed JSON: %s"), *ParsedJsonError));
+                    }
