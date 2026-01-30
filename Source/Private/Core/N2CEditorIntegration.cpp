@@ -76,13 +76,10 @@ namespace
         if (HistorySize > 0)
         {
             const TSharedPtr<ISourceControlRevision, ESPMode::ThreadSafe> Revision = State->GetHistoryItem(0);
-            if (Revision.IsValid())
+            if (Revision.IsValid()) 
             {
-                const FString Identifier = Revision->GetCheckInIdentifier();
-                if (!Identifier.IsEmpty())
-                {
-                    return Identifier;
-                }
+                const FString Identifier = FString::FromInt(Revision->GetRevisionNumber());
+                return Identifier;
             }
         }
 

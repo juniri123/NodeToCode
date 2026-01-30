@@ -100,6 +100,9 @@ public:
     void ClearPendingFlowText();
 
 private:
+    /** Save the JSON request payload before sending to the LLM */
+    bool SaveRequestJsonToDisk(const FString& JsonInput);
+
     /** Generate file paths for translation */
     FString GenerateTranslationRootPath(const FString& BlueprintName) const;
 
