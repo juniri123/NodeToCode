@@ -14,6 +14,7 @@
 #include "Core/N2CSettings.h"
 #include "Core/N2CToolbarCommand.h"
 #include "HAL/PlatformFileManager.h"
+#include "HAL/PlatformProcess.h"
 #include "LLM/N2CLLMModule.h"
 #include "LLM/N2CLLMTypes.h"
 #include "Framework/Notifications/NotificationManager.h"
@@ -442,6 +443,20 @@ void FN2CEditorIntegration::ExecuteSaveFlowTextForEditor(TWeakPtr<FBlueprintEdit
     Info.FadeOutDuration = 0.5f;
     Info.ExpireDuration = 2.0f;
     FSlateNotificationManager::Get().AddNotification(Info);
+}
+
+void FN2CEditorIntegration::ExecuteOpenSaveFolderForEditor(TWeakPtr<FBlueprintEditor> InEditor)
+{
+    TArray<UK2Node*> CollectedNodes;
+    FString SafeGraphName;
+    FString RootPath;
+    FString FlowDir;
+    if (!PrepareSaveContext(InEditor, CollectedNodes, SafeGraphName, RootPath, FlowDir))
+    {
+        return;
+    }
+
+    FPlatformProcess::ExploreFolder(*RootPath);
 }
 
 // N2C 확장: Flow 텍스트 클립보드 복사
@@ -922,6 +937,27 @@ void FN2CEditorIntegration::RegisterToolbarForEditor(TSharedPtr<FBlueprintEditor
     );
 
     CommandList->MapAction(
+        FN2CToolbarCommand::Get().OpenSaveFolderCommand,
+        FExecuteAction::CreateLambda([this, WeakEditor, BlueprintName]()
+        {
+            FN2CLogger::Get().Log(
+                FString::Printf(TEXT("Open Save Folder triggered for Blueprint: %s"), *BlueprintName),
+                EN2CLogSeverity::Info
+            );
+            ExecuteOpenSaveFolderForEditor(WeakEditor);
+        }),
+        FCanExecuteAction::CreateLambda([WeakEditor]()
+        {
+            TSharedPtr<FBlueprintEditor> Editor = WeakEditor.Pin();
+            if (!Editor.IsValid())
+            {
+                return false;
+            }
+            return Editor->GetCurrentMode() == FBlueprintEditorApplicationModes::StandardBlueprintEditorMode;
+        })
+    );
+
+    CommandList->MapAction(
         FN2CToolbarCommand::Get().CopyParsedJsonCommand,
         FExecuteAction::CreateLambda([this, WeakEditor, BlueprintName]()
         {
@@ -974,6 +1010,8 @@ void FN2CEditorIntegration::RegisterToolbarForEditor(TSharedPtr<FBlueprintEditor
                     MenuBuilder.AddMenuEntry(FN2CToolbarCommand::Get().SaveParsedJsonCommand);
                     MenuBuilder.AddMenuEntry(FN2CToolbarCommand::Get().SaveFlowJsonCommand);
                     MenuBuilder.AddMenuEntry(FN2CToolbarCommand::Get().SaveFlowTextCommand);
+                    MenuBuilder.AddMenuSeparator();
+                    MenuBuilder.AddMenuEntry(FN2CToolbarCommand::Get().OpenSaveFolderCommand);
                     MenuBuilder.AddMenuSeparator();
                     MenuBuilder.AddMenuEntry(FN2CToolbarCommand::Get().CopyParsedJsonCommand);
                     MenuBuilder.AddMenuEntry(FN2CToolbarCommand::Get().CopyFlowJsonCommand);

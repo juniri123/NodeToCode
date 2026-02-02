@@ -69,6 +69,9 @@ private:
     /** Execute save flow text file for a specific editor */
     void ExecuteSaveFlowTextForEditor(TWeakPtr<FBlueprintEditor> InEditor);
 
+    /** Execute open save folder for a specific editor */
+    void ExecuteOpenSaveFolderForEditor(TWeakPtr<FBlueprintEditor> InEditor);
+
     /** Execute copy flow text to clipboard for a specific editor */
     void ExecuteCopyFlowTextForEditor(TWeakPtr<FBlueprintEditor> InEditor);
 
