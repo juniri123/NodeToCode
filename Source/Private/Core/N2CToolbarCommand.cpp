@@ -15,6 +15,7 @@ const FName FN2CToolbarCommand::CommandName_CopyJson = TEXT("NodeToCode_CopyJson
 const FName FN2CToolbarCommand::CommandName_SaveFlow = TEXT("NodeToCode_SaveFlow");
 const FName FN2CToolbarCommand::CommandName_CopyFlowJson = TEXT("NodeToCode_CopyFlowJson");
 const FName FN2CToolbarCommand::CommandName_CopyFlowText = TEXT("NodeToCode_CopyFlowText");
+const FName FN2CToolbarCommand::CommandName_CopyParsedJson = TEXT("NodeToCode_CopyParsedJson");
 const FText FN2CToolbarCommand::CommandLabel_Open = NSLOCTEXT("NodeToCode", "OpenWindow", "Open Node to Code");
 const FText FN2CToolbarCommand::CommandLabel_Collect = NSLOCTEXT("NodeToCode", "CollectNodes", "Collect and Translate Nodes");
 const FText FN2CToolbarCommand::CommandLabel_CopyJson = NSLOCTEXT("NodeToCode", "CopyJson", "Copy Blueprint JSON");
@@ -22,6 +23,7 @@ const FText FN2CToolbarCommand::CommandLabel_CopyJson = NSLOCTEXT("NodeToCode", 
 const FText FN2CToolbarCommand::CommandLabel_SaveFlow = NSLOCTEXT("NodeToCode", "SaveFlow", "Save Flow Json/Text");
 const FText FN2CToolbarCommand::CommandLabel_CopyFlowJson = NSLOCTEXT("NodeToCode", "CopyFlowJson", "Copy Flow Json");
 const FText FN2CToolbarCommand::CommandLabel_CopyFlowText = NSLOCTEXT("NodeToCode", "CopyFlowText", "Copy Flow Text");
+const FText FN2CToolbarCommand::CommandLabel_CopyParsedJson = NSLOCTEXT("NodeToCode", "CopyParsedJson", "Copy Parsed Json");
 const FText FN2CToolbarCommand::CommandTooltip_Open = NSLOCTEXT("NodeToCode", "OpenWindowTooltip", "Open the Node to Code window");
 const FText FN2CToolbarCommand::CommandTooltip_Collect = NSLOCTEXT("NodeToCode", "CollectNodesTooltip", "Collect nodes from current Blueprint graph and translate to code");
 const FText FN2CToolbarCommand::CommandTooltip_CopyJson = NSLOCTEXT("NodeToCode", "CopyJsonTooltip", "Copy the serialized Blueprint JSON to clipboard");
@@ -29,6 +31,7 @@ const FText FN2CToolbarCommand::CommandTooltip_CopyJson = NSLOCTEXT("NodeToCode"
 const FText FN2CToolbarCommand::CommandTooltip_SaveFlow = NSLOCTEXT("NodeToCode", "SaveFlowTooltip", "Save flow.json and flow.txt under the translation output directory and open the folder");
 const FText FN2CToolbarCommand::CommandTooltip_CopyFlowJson = NSLOCTEXT("NodeToCode", "CopyFlowJsonTooltip", "Copy flow.json text to clipboard");
 const FText FN2CToolbarCommand::CommandTooltip_CopyFlowText = NSLOCTEXT("NodeToCode", "CopyFlowTextTooltip", "Copy flow text to clipboard");
+const FText FN2CToolbarCommand::CommandTooltip_CopyParsedJson = NSLOCTEXT("NodeToCode", "CopyParsedJsonTooltip", "Copy parsed.json text to clipboard");
 
 FN2CToolbarCommand::FN2CToolbarCommand()
     : TCommands<FN2CToolbarCommand>(
@@ -72,8 +75,8 @@ void FN2CToolbarCommand::RegisterCommands()
     // Flow Json/Text 저장
     UI_COMMAND(
         SaveFlowCommand,
-        "Save Flow Json/Text",
-        "Save flow.json and flow.txt for the current Blueprint graph and open the folder",
+        "Save Parsed Json, Flow Json/Text",
+        "Save Parsed Json and Flow Json/Text for the current Blueprint graph and open the folder",
         EUserInterfaceActionType::Button,
         FInputChord()
     );
@@ -92,6 +95,15 @@ void FN2CToolbarCommand::RegisterCommands()
         CopyFlowTextCommand,
         "Copy Flow Text",
         "Copy flow text for the current Blueprint graph to the clipboard",
+        EUserInterfaceActionType::Button,
+        FInputChord()
+    );
+
+    // Parsed Json 복사
+    UI_COMMAND(
+        CopyParsedJsonCommand,
+        "Copy Parsed Json",
+        "Copy parsed.json text for the current Blueprint graph to the clipboard",
         EUserInterfaceActionType::Button,
         FInputChord()
     );

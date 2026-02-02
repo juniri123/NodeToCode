@@ -444,6 +444,57 @@ void FN2CEditorIntegration::ExecuteCopyFlowJsonForEditor(TWeakPtr<FBlueprintEdit
     }
 }
 
+// N2C 확장: Parsed JSON 클립보드 복사
+void FN2CEditorIntegration::ExecuteCopyParsedJsonForEditor(TWeakPtr<FBlueprintEditor> InEditor)
+{
+    // Parsed JSON을 클립보드에 복사하는 툴바 액션
+    // Get the editor pointer
+    TSharedPtr<FBlueprintEditor> Editor = InEditor.Pin();
+    if (!Editor.IsValid())
+    {
+        FN2CLogger::Get().LogError(TEXT("Invalid Blueprint Editor pointer"));
+        return;
+    }
+
+    // Get focused graph
+    UEdGraph* FocusedGraph = Editor->GetFocusedGraph();
+    if (!FocusedGraph)
+    {
+        FN2CLogger::Get().LogError(TEXT("No focused graph in Blueprint Editor"));
+        return;
+    }
+
+    // Collect nodes
+    FN2CNodeCollector& Collector = FN2CNodeCollector::Get();
+    TArray<UK2Node*> CollectedNodes;
+    if (!Collector.CollectNodesFromGraph(FocusedGraph, CollectedNodes))
+    {
+        FN2CLogger::Get().LogError(TEXT("Failed to collect nodes for parsed JSON"));
+        return;
+    }
+
+    FString ParsedJson;
+    FString ParsedJsonError;
+    if (!FN2CParsedDumpBuilder::BuildParsedJsonFromNodes(CollectedNodes, ParsedJson, ParsedJsonError))
+    {
+        FN2CLogger::Get().LogError(FString::Printf(TEXT("Failed to build parsed JSON: %s"), *ParsedJsonError));
+        return;
+    }
+
+    if (!ParsedJson.IsEmpty())
+    {
+        FPlatformApplicationMisc::ClipboardCopy(*ParsedJson);
+
+        // Show notification
+        FNotificationInfo Info(NSLOCTEXT("NodeToCode", "ParsedJsonCopied", "Parsed JSON copied to clipboard"));
+        Info.bFireAndForget = true;
+        Info.FadeInDuration = 0.2f;
+        Info.FadeOutDuration = 0.5f;
+        Info.ExpireDuration = 2.0f;
+        FSlateNotificationManager::Get().AddNotification(Info);
+    }
+}
+
 void FN2CEditorIntegration::Initialize()
 {
     // Register commands
@@ -705,6 +756,27 @@ void FN2CEditorIntegration::RegisterToolbarForEditor(TSharedPtr<FBlueprintEditor
         })
     );
 
+    CommandList->MapAction(
+        FN2CToolbarCommand::Get().CopyParsedJsonCommand,
+        FExecuteAction::CreateLambda([this, WeakEditor, BlueprintName]()
+        {
+            FN2CLogger::Get().Log(
+                FString::Printf(TEXT("Copy Parsed Json triggered for Blueprint: %s"), *BlueprintName),
+                EN2CLogSeverity::Info
+            );
+            ExecuteCopyParsedJsonForEditor(WeakEditor);
+        }),
+        FCanExecuteAction::CreateLambda([WeakEditor]()
+        {
+            TSharedPtr<FBlueprintEditor> Editor = WeakEditor.Pin();
+            if (!Editor.IsValid())
+            {
+                return false;
+            }
+            return Editor->GetCurrentMode() == FBlueprintEditorApplicationModes::StandardBlueprintEditorMode;
+        })
+    );
+
     // Store in our map
     EditorCommandLists.Add(WeakEditor, CommandList);
     FN2CLogger::Get().Log(
@@ -735,6 +807,7 @@ void FN2CEditorIntegration::RegisterToolbarForEditor(TSharedPtr<FBlueprintEditor
                     MenuBuilder.AddMenuEntry(FN2CToolbarCommand::Get().SaveFlowCommand);
                     MenuBuilder.AddMenuEntry(FN2CToolbarCommand::Get().CopyFlowJsonCommand);
                     MenuBuilder.AddMenuEntry(FN2CToolbarCommand::Get().CopyFlowTextCommand);
+                    MenuBuilder.AddMenuEntry(FN2CToolbarCommand::Get().CopyParsedJsonCommand);
 
                     return MenuBuilder.MakeWidget();
                 }),
