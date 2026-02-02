@@ -1,4 +1,4 @@
-// Copyright (c) 2025 Nick McClure (Protospatial). All Rights Reserved.
+﻿// Copyright (c) 2025 Nick McClure (Protospatial). All Rights Reserved.
 
 #include "Core/N2CParsedDumpBuilder.h"
 
@@ -37,7 +37,41 @@ FString MemberRefToString(const FMemberReference& Ref)
     {
         return TEXT("()");
     }
-    return Ref.ToString();
+
+    const FString ParentPath = Ref.GetMemberParentClass()
+        ? Ref.GetMemberParentClass()->GetPathName()
+        : TEXT("None");
+
+    return FString::Printf(
+        TEXT("(MemberName=\"%s\",MemberGuid=%s,MemberParent=%s,bSelfContext=%s)"),
+        *Ref.GetMemberName().ToString(),
+        Ref.GetMemberGuid().IsValid()
+            ? *Ref.GetMemberGuid().ToString(EGuidFormats::Digits)
+            : TEXT("None"),
+        *ParentPath,
+        *BoolString(Ref.IsSelfContext())
+    );
+}
+
+FString MemberRefToString(const FSimpleMemberReference& Ref)
+{
+    if (Ref.MemberName.IsNone() && !Ref.MemberGuid.IsValid())
+    {
+        return TEXT("()");
+    }
+
+    const FString ParentPath = Ref.MemberParent
+        ? Ref.MemberParent->GetPathName()
+        : TEXT("None");
+
+    return FString::Printf(
+        TEXT("(MemberName=\"%s\",MemberGuid=%s,MemberParent=%s)"),
+        *Ref.MemberName.ToString(),
+        Ref.MemberGuid.IsValid()
+            ? *Ref.MemberGuid.ToString(EGuidFormats::Digits)
+            : TEXT("None"),
+        *ParentPath
+    );
 }
 
 // FMemberReference → JSON
@@ -69,7 +103,13 @@ TSharedPtr<FJsonObject> PinTypeToJson(const FEdGraphPinType& PinType)
     Obj->SetStringField(TEXT("PinSubCategoryObject"), PinType.PinSubCategoryObject.IsValid() ? PinType.PinSubCategoryObject->GetPathName() : TEXT("None"));
     Obj->SetStringField(TEXT("PinSubCategoryMemberReference"), MemberRefToString(PinType.PinSubCategoryMemberReference));
     Obj->SetStringField(TEXT("PinValueType"), TEXT("()"));
-    Obj->SetStringField(TEXT("ContainerType"), StaticEnum<EEdGraphPinContainerType>()->GetNameStringByValue(static_cast<int64>(PinType.ContainerType)));
+    const UEnum* ContainerEnum = StaticEnum<EPinContainerType>();
+    Obj->SetStringField(
+        TEXT("ContainerType"),
+        ContainerEnum
+            ? ContainerEnum->GetNameStringByValue(static_cast<int64>(PinType.ContainerType))
+            : TEXT("None")
+    );
     Obj->SetStringField(TEXT("bIsReference"), BoolString(PinType.bIsReference));
     Obj->SetStringField(TEXT("bIsConst"), BoolString(PinType.bIsConst));
     Obj->SetStringField(TEXT("bIsWeakPointer"), BoolString(PinType.bIsWeakPointer));
@@ -134,7 +174,7 @@ bool FN2CParsedDumpBuilder::BuildParsedJsonFromNodes(const TArray<UK2Node*>& Nod
         if (const UK2Node_CallFunction* CallFunc = Cast<UK2Node_CallFunction>(Node))
         {
             NodeObj->SetObjectField(TEXT("FunctionReference"), MemberRefToJson(CallFunc->FunctionReference));
-            NodeObj->SetStringField(TEXT("bDefaultsToPureFunc"), BoolString(CallFunc->bIsPureFunc));
+            NodeObj->SetStringField(TEXT("bDefaultsToPureFunc"), BoolString(CallFunc->bDefaultsToPureFunc));
         }
         else if (const UK2Node_FunctionEntry* FuncEntry = Cast<UK2Node_FunctionEntry>(Node))
         {

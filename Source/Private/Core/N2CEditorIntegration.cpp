@@ -896,6 +896,18 @@ void FN2CEditorIntegration::ExecuteCollectNodesForEditor(TWeakPtr<FBlueprintEdit
                     {
                         FN2CLogger::Get().LogWarning(FString::Printf(TEXT("Failed to build flow text: %s"), *FlowTextError));
                     }
+
+                    FString ParsedJson;
+                    FString ParsedJsonError;
+                    if (FN2CParsedDumpBuilder::BuildParsedJsonFromNodes(CollectedNodes, ParsedJson, ParsedJsonError))
+                    {
+                        LLMModule->SetPendingParsedJson(ParsedJson);
+                        FN2CLogger::Get().Log(TEXT("Parsed JSON generated successfully"), EN2CLogSeverity::Info);
+                    }
+                    else
+                    {
+                        FN2CLogger::Get().LogWarning(FString::Printf(TEXT("Failed to build parsed JSON: %s"), *ParsedJsonError));
+                    }
                     
                     if (LLMModule->Initialize())
                     {
@@ -957,14 +969,3 @@ void FN2CEditorIntegration::ExecuteCollectNodesForEditor(TWeakPtr<FBlueprintEdit
         }
     }
 }
-                    FString ParsedJson;
-                    FString ParsedJsonError;
-                    if (FN2CParsedDumpBuilder::BuildParsedJsonFromNodes(CollectedNodes, ParsedJson, ParsedJsonError))
-                    {
-                        LLMModule->SetPendingParsedJson(ParsedJson);
-                        FN2CLogger::Get().Log(TEXT("Parsed JSON generated successfully"), EN2CLogSeverity::Info);
-                    }
-                    else
-                    {
-                        FN2CLogger::Get().LogWarning(FString::Printf(TEXT("Failed to build parsed JSON: %s"), *ParsedJsonError));
-                    }
