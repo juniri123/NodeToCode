@@ -57,6 +57,9 @@ private:
     /** Execute copy blueprint JSON to clipboard for a specific editor */
     void ExecuteCopyJsonForEditor(TWeakPtr<FBlueprintEditor> InEditor);
 
+    /** Execute save parsed/flow files for a specific editor */
+    void ExecuteSaveParsedFlowFilesForEditor(TWeakPtr<FBlueprintEditor> InEditor);
+
     /** Execute save parsed JSON file for a specific editor */
     void ExecuteSaveParsedJsonForEditor(TWeakPtr<FBlueprintEditor> InEditor);
 
@@ -65,9 +68,6 @@ private:
 
     /** Execute save flow text file for a specific editor */
     void ExecuteSaveFlowTextForEditor(TWeakPtr<FBlueprintEditor> InEditor);
-
-    /** Execute open save folder for a specific editor */
-    void ExecuteOpenSaveFolderForEditor(TWeakPtr<FBlueprintEditor> InEditor);
 
     /** Execute copy flow text to clipboard for a specific editor */
     void ExecuteCopyFlowTextForEditor(TWeakPtr<FBlueprintEditor> InEditor);
