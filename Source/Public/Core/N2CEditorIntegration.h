@@ -54,6 +54,9 @@ private:
     /** Execute collect nodes for a specific editor */
     void ExecuteCollectNodesForEditor(TWeakPtr<FBlueprintEditor> InEditor);
 
+    /** Execute save blueprint JSON to file for a specific editor */
+    void ExecuteSaveBlueprintJsonForEditor(TWeakPtr<FBlueprintEditor> InEditor);
+
     /** Execute copy blueprint JSON to clipboard for a specific editor */
     void ExecuteCopyJsonForEditor(TWeakPtr<FBlueprintEditor> InEditor);
 

@@ -431,6 +431,54 @@ void FN2CEditorIntegration::ExecuteSaveParsedFlowFilesForEditor(TWeakPtr<FBluepr
     FSlateNotificationManager::Get().AddNotification(Info);
 }
 
+void FN2CEditorIntegration::ExecuteSaveBlueprintJsonForEditor(TWeakPtr<FBlueprintEditor> InEditor)
+{
+    TArray<UK2Node*> CollectedNodes;
+    FString SafeGraphName;
+    FString RootPath;
+    FString FlowDir;
+    if (!PrepareSaveContext(InEditor, CollectedNodes, SafeGraphName, RootPath, FlowDir))
+    {
+        return;
+    }
+
+    FN2CNodeTranslator& Translator = FN2CNodeTranslator::Get();
+    if (!Translator.GenerateN2CStruct(CollectedNodes))
+    {
+        FN2CLogger::Get().LogError(TEXT("Failed to translate nodes for Blueprint JSON save"));
+        return;
+    }
+
+    const FN2CBlueprint& Blueprint = Translator.GetN2CBlueprint();
+    if (!Blueprint.IsValid())
+    {
+        FN2CLogger::Get().LogError(TEXT("Generated Blueprint JSON data is invalid"));
+        return;
+    }
+
+    FN2CSerializer::SetPrettyPrint(true);
+    const FString JsonOutput = FN2CSerializer::ToJson(Blueprint);
+    if (JsonOutput.IsEmpty())
+    {
+        FN2CLogger::Get().LogError(TEXT("Blueprint JSON serialization failed"));
+        return;
+    }
+
+    const FString BlueprintJsonPath = FPaths::Combine(FlowDir, FString::Printf(TEXT("%s_blueprint.json"), *SafeGraphName));
+    if (!FFileHelper::SaveStringToFile(JsonOutput, *BlueprintJsonPath))
+    {
+        FN2CLogger::Get().LogError(FString::Printf(TEXT("Failed to save Blueprint JSON: %s"), *BlueprintJsonPath));
+        return;
+    }
+
+    FNotificationInfo Info(NSLOCTEXT("NodeToCode", "BlueprintJsonSaved", "Blueprint JSON file saved"));
+    Info.bFireAndForget = true;
+    Info.FadeInDuration = 0.2f;
+    Info.FadeOutDuration = 0.5f;
+    Info.ExpireDuration = 2.0f;
+    FSlateNotificationManager::Get().AddNotification(Info);
+}
+
 // N2C 확장: Parsed Json 파일 즉시 저장
 void FN2CEditorIntegration::ExecuteSaveParsedJsonForEditor(TWeakPtr<FBlueprintEditor> InEditor)
 {
@@ -881,6 +929,27 @@ void FN2CEditorIntegration::RegisterToolbarForEditor(TSharedPtr<FBlueprintEditor
     
     // Map the Copy JSON command
     CommandList->MapAction(
+        FN2CToolbarCommand::Get().SaveBlueprintJsonCommand,
+        FExecuteAction::CreateLambda([this, WeakEditor, BlueprintName]()
+        {
+            FN2CLogger::Get().Log(
+                FString::Printf(TEXT("Save Blueprint JSON triggered for Blueprint: %s"), *BlueprintName),
+                EN2CLogSeverity::Info
+            );
+            ExecuteSaveBlueprintJsonForEditor(WeakEditor);
+        }),
+        FCanExecuteAction::CreateLambda([WeakEditor]()
+        {
+            TSharedPtr<FBlueprintEditor> Editor = WeakEditor.Pin();
+            if (!Editor.IsValid())
+            {
+                return false;
+            }
+            return Editor->GetCurrentMode() == FBlueprintEditorApplicationModes::StandardBlueprintEditorMode;
+        })
+    );
+
+    CommandList->MapAction(
         FN2CToolbarCommand::Get().CopyJsonCommand,
         FExecuteAction::CreateLambda([this, WeakEditor, BlueprintName]()
         {
@@ -1095,6 +1164,7 @@ void FN2CEditorIntegration::RegisterToolbarForEditor(TSharedPtr<FBlueprintEditor
                     
                     MenuBuilder.AddMenuEntry(FN2CToolbarCommand::Get().OpenWindowCommand);
                     MenuBuilder.AddMenuEntry(FN2CToolbarCommand::Get().CollectNodesCommand);
+                    MenuBuilder.AddMenuEntry(FN2CToolbarCommand::Get().SaveBlueprintJsonCommand);
                     MenuBuilder.AddMenuEntry(FN2CToolbarCommand::Get().CopyJsonCommand);
                     MenuBuilder.AddMenuSeparator();
                     MenuBuilder.AddMenuEntry(FN2CToolbarCommand::Get().SaveParsedFlowFilesCommand);

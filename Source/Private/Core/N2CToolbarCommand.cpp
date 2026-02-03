@@ -10,6 +10,7 @@
 
 const FName FN2CToolbarCommand::CommandName_Open = TEXT("NodeToCode_OpenWindow");
 const FName FN2CToolbarCommand::CommandName_Collect = TEXT("NodeToCode_CollectNodes");
+const FName FN2CToolbarCommand::CommandName_SaveBlueprintJson = TEXT("NodeToCode_SaveBlueprintJson");
 const FName FN2CToolbarCommand::CommandName_CopyJson = TEXT("NodeToCode_CopyJson");
 // N2C 확장: Flow 관련 툴바 커맨드 추가
 const FName FN2CToolbarCommand::CommandName_SaveParsedFlowFiles = TEXT("NodeToCode_SaveParsedFlowFiles");
@@ -22,6 +23,7 @@ const FName FN2CToolbarCommand::CommandName_CopyFlowText = TEXT("NodeToCode_Copy
 const FName FN2CToolbarCommand::CommandName_CopyParsedJson = TEXT("NodeToCode_CopyParsedJson");
 const FText FN2CToolbarCommand::CommandLabel_Open = NSLOCTEXT("NodeToCode", "OpenWindow", "Open Node to Code");
 const FText FN2CToolbarCommand::CommandLabel_Collect = NSLOCTEXT("NodeToCode", "CollectNodes", "Collect and Translate Nodes");
+const FText FN2CToolbarCommand::CommandLabel_SaveBlueprintJson = NSLOCTEXT("NodeToCode", "SaveBlueprintJson", "Save Blueprint JSON");
 const FText FN2CToolbarCommand::CommandLabel_CopyJson = NSLOCTEXT("NodeToCode", "CopyJson", "Copy Blueprint JSON");
 // N2C 확장: Flow 관련 라벨 추가
 const FText FN2CToolbarCommand::CommandLabel_SaveParsedFlowFiles = NSLOCTEXT("NodeToCode", "SaveParsedFlowFiles", "Save Parsed/Flow Files");
@@ -34,6 +36,7 @@ const FText FN2CToolbarCommand::CommandLabel_CopyFlowText = NSLOCTEXT("NodeToCod
 const FText FN2CToolbarCommand::CommandLabel_CopyParsedJson = NSLOCTEXT("NodeToCode", "CopyParsedJson", "Copy Parsed Json");
 const FText FN2CToolbarCommand::CommandTooltip_Open = NSLOCTEXT("NodeToCode", "OpenWindowTooltip", "Open the Node to Code window");
 const FText FN2CToolbarCommand::CommandTooltip_Collect = NSLOCTEXT("NodeToCode", "CollectNodesTooltip", "Collect nodes from current Blueprint graph and translate to code");
+const FText FN2CToolbarCommand::CommandTooltip_SaveBlueprintJson = NSLOCTEXT("NodeToCode", "SaveBlueprintJsonTooltip", "Save the serialized Blueprint JSON to file");
 const FText FN2CToolbarCommand::CommandTooltip_CopyJson = NSLOCTEXT("NodeToCode", "CopyJsonTooltip", "Copy the serialized Blueprint JSON to clipboard");
 // N2C 확장: Flow 관련 툴팁 추가
 const FText FN2CToolbarCommand::CommandTooltip_SaveParsedFlowFiles = NSLOCTEXT("NodeToCode", "SaveParsedFlowFilesTooltip", "Save parsed.json, flow.json, and flow.txt for the current Blueprint graph");
@@ -72,6 +75,14 @@ void FN2CToolbarCommand::RegisterCommands()
         CollectNodesCommand,
         "Translate Blueprint Graph to Code",
         "Translate current Blueprint graph to code.\nResults will be in the Node to Code Editor window.",
+        EUserInterfaceActionType::Button,
+        FInputChord()
+    );
+
+    UI_COMMAND(
+        SaveBlueprintJsonCommand,
+        "Save Blueprint JSON",
+        "Save the serialized Blueprint JSON to file",
         EUserInterfaceActionType::Button,
         FInputChord()
     );

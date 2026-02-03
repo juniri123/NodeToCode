@@ -16,6 +16,7 @@ public:
     // Commands
     TSharedPtr<FUICommandInfo> OpenWindowCommand;
     TSharedPtr<FUICommandInfo> CollectNodesCommand;
+    TSharedPtr<FUICommandInfo> SaveBlueprintJsonCommand;
     TSharedPtr<FUICommandInfo> CopyJsonCommand;
     TSharedPtr<FUICommandInfo> SaveParsedFlowFilesCommand;
     TSharedPtr<FUICommandInfo> SaveParsedJsonCommand;
@@ -29,6 +30,7 @@ public:
     // Command names and labels
     static const FName CommandName_Open;
     static const FName CommandName_Collect;
+    static const FName CommandName_SaveBlueprintJson;
     static const FName CommandName_CopyJson;
     static const FName CommandName_SaveParsedFlowFiles;
     static const FName CommandName_SaveParsedJson;
@@ -40,6 +42,7 @@ public:
     static const FName CommandName_CopyParsedJson;
     static const FText CommandLabel_Open;
     static const FText CommandLabel_Collect;
+    static const FText CommandLabel_SaveBlueprintJson;
     static const FText CommandLabel_CopyJson;
     static const FText CommandLabel_SaveParsedFlowFiles;
     static const FText CommandLabel_SaveParsedJson;
@@ -51,6 +54,7 @@ public:
     static const FText CommandLabel_CopyParsedJson;
     static const FText CommandTooltip_Open;
     static const FText CommandTooltip_Collect;
+    static const FText CommandTooltip_SaveBlueprintJson;
     static const FText CommandTooltip_CopyJson;
     static const FText CommandTooltip_SaveParsedFlowFiles;
     static const FText CommandTooltip_SaveParsedJson;
