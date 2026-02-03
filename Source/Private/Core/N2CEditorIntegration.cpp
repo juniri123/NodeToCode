@@ -23,9 +23,11 @@
 #include "Misc/Paths.h"
 #include "Widgets/Notifications/SNotificationList.h"
 #include "ISourceControlModule.h"
+#include "ISourceControlChangelist.h"
 #include "ISourceControlProvider.h"
 #include "ISourceControlRevision.h"
 #include "ISourceControlState.h"
+#include "SourceControlOperations.h"
 
 #if PLATFORM_WINDOWS
 #include "Windows/WindowsPlatformApplicationMisc.h"
@@ -79,23 +81,115 @@ namespace
             return FString();
         }
 
-        const int32 HistorySize = State->GetHistorySize();
-        FN2CLogger::Get().Log(FString::Printf(TEXT("CL check: history size=%d"), HistorySize), EN2CLogSeverity::Debug);
-        if (HistorySize > 0)
+        const auto TryGetIdentifierFromRevision = [](const TSharedPtr<ISourceControlRevision, ESPMode::ThreadSafe>& Revision) -> FString
         {
-            const TSharedPtr<ISourceControlRevision, ESPMode::ThreadSafe> Revision = State->GetHistoryItem(0);
-            if (Revision.IsValid()) 
+            if (!Revision.IsValid())
             {
-                const FString Identifier = FString::FromInt(Revision->GetRevisionNumber());
-                FN2CLogger::Get().Log(FString::Printf(TEXT("CL check: revision number=%s"), *Identifier), EN2CLogSeverity::Debug);
-                return Identifier;
+                return FString();
             }
-            FN2CLogger::Get().LogWarning(TEXT("CL check: history item invalid"));
+
+            const int32 CheckInIdentifier = Revision->GetCheckInIdentifier();
+            if (CheckInIdentifier > 0)
+            {
+                return FString::FromInt(CheckInIdentifier);
+            }
+
+            const int32 RevisionNumber = Revision->GetRevisionNumber();
+            if (RevisionNumber > 0)
+            {
+                return FString::FromInt(RevisionNumber);
+            }
+
+            return FString();
+        };
+
+        const FSourceControlChangelistPtr CheckInIdentifier = State->GetCheckInIdentifier();
+        if (CheckInIdentifier.IsValid())
+        {
+            const FString Identifier = CheckInIdentifier->GetIdentifier();
+            if (!Identifier.IsEmpty())
+            {
+                FString NumericIdentifier;
+                for (const TCHAR Char : Identifier)
+                {
+                    if (FChar::IsDigit(Char))
+                    {
+                        NumericIdentifier.AppendChar(Char);
+                    }
+                }
+
+                if (!NumericIdentifier.IsEmpty())
+                {
+                    FN2CLogger::Get().Log(FString::Printf(TEXT("CL check: check-in identifier=%s"), *NumericIdentifier), EN2CLogSeverity::Debug);
+                    return NumericIdentifier;
+                }
+
+                if (!Identifier.Equals(TEXT("default"), ESearchCase::IgnoreCase))
+                {
+                    FN2CLogger::Get().Log(FString::Printf(TEXT("CL check: check-in identifier=%s"), *Identifier), EN2CLogSeverity::Debug);
+                    return Identifier;
+                }
+
+                FN2CLogger::Get().LogWarning(TEXT("CL check: check-in identifier is default changelist"));
+            }
+            else
+            {
+                FN2CLogger::Get().LogWarning(TEXT("CL check: check-in identifier empty"));
+            }
         }
         else
         {
-            FN2CLogger::Get().LogWarning(TEXT("CL check: history empty (unsubmitted or no history)"));
+            FN2CLogger::Get().LogWarning(TEXT("CL check: check-in identifier unavailable"));
         }
+
+        const FString CurrentRevisionIdentifier = TryGetIdentifierFromRevision(State->GetCurrentRevision());
+        if (!CurrentRevisionIdentifier.IsEmpty())
+        {
+            FN2CLogger::Get().Log(FString::Printf(TEXT("CL check: current revision=%s"), *CurrentRevisionIdentifier), EN2CLogSeverity::Debug);
+            return CurrentRevisionIdentifier;
+        }
+
+        auto TryHistoryLookup = [&](const FSourceControlStatePtr& InState) -> FString
+        {
+            if (!InState.IsValid())
+            {
+                return FString();
+            }
+
+            const int32 HistorySize = InState->GetHistorySize();
+            FN2CLogger::Get().Log(FString::Printf(TEXT("CL check: history size=%d"), HistorySize), EN2CLogSeverity::Debug);
+            if (HistorySize <= 0)
+            {
+                return FString();
+            }
+
+            const TSharedPtr<ISourceControlRevision, ESPMode::ThreadSafe> HistoryItem = InState->GetHistoryItem(0);
+            return TryGetIdentifierFromRevision(HistoryItem);
+        };
+
+        FString HistoryIdentifier = TryHistoryLookup(State);
+        if (!HistoryIdentifier.IsEmpty())
+        {
+            FN2CLogger::Get().Log(FString::Printf(TEXT("CL check: history revision=%s"), *HistoryIdentifier), EN2CLogSeverity::Debug);
+            return HistoryIdentifier;
+        }
+
+        // GetState() alone may not populate history for some providers; explicitly request history.
+        TSharedRef<FUpdateStatus, ESPMode::ThreadSafe> UpdateStatusOp = ISourceControlOperation::Create<FUpdateStatus>();
+        UpdateStatusOp->SetUpdateHistory(true);
+        UpdateStatusOp->SetForceUpdate(true);
+        UpdateStatusOp->SetQuiet(true);
+        Provider.Execute(UpdateStatusOp, Filename);
+
+        const FSourceControlStatePtr RefreshedState = Provider.GetState(Filename, EStateCacheUsage::Use);
+        HistoryIdentifier = TryHistoryLookup(RefreshedState);
+        if (!HistoryIdentifier.IsEmpty())
+        {
+            FN2CLogger::Get().Log(FString::Printf(TEXT("CL check: history revision(after update)=%s"), *HistoryIdentifier), EN2CLogSeverity::Debug);
+            return HistoryIdentifier;
+        }
+
+        FN2CLogger::Get().LogWarning(TEXT("CL check: history empty (unsubmitted or no history)"));
 
         return FString();
     }
@@ -122,10 +216,11 @@ namespace
         }
 
         FString BlueprintName = TEXT("Unknown");
+        FString ChangeList;
         if (UBlueprint* Blueprint = Cast<UBlueprint>(FocusedGraph->GetOuter()))
         {
             BlueprintName = Blueprint->GetName();
-            const FString ChangeList = GetBlueprintChangeListNumber(Blueprint);
+            ChangeList = GetBlueprintChangeListNumber(Blueprint);
             if (!ChangeList.IsEmpty())
             {
                 UN2CLLMModule::Get()->SetPendingBlueprintChangeList(ChangeList);
@@ -153,13 +248,9 @@ namespace
         OutSafeGraphName = FPaths::MakeValidFileName(FocusedGraph->GetName());
 
         FString Suffix;
-        if (UBlueprint* Blueprint = Cast<UBlueprint>(FocusedGraph->GetOuter()))
+        if (!ChangeList.IsEmpty())
         {
-            const FString ChangeList = GetBlueprintChangeListNumber(Blueprint);
-            if (!ChangeList.IsEmpty())
-            {
-                Suffix = FString::Printf(TEXT("CL%s"), *ChangeList);
-            }
+            Suffix = FString::Printf(TEXT("CL%s"), *ChangeList);
         }
         if (Suffix.IsEmpty())
         {
