@@ -260,7 +260,7 @@ namespace
         OutRootPath = FPaths::Combine(
             BasePath,
             FString::Printf(TEXT("%s_%s_%s"), *BlueprintName, *OutSafeGraphName, *Suffix));
-        OutFlowDir = FPaths::Combine(OutRootPath, TEXT("python"));
+        OutFlowDir = OutRootPath;
 
         IPlatformFile& PlatformFile = FPlatformFileManager::Get().GetPlatformFile();
         if (!PlatformFile.CreateDirectoryTree(*OutFlowDir))
