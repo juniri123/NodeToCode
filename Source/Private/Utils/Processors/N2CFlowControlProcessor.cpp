@@ -11,6 +11,7 @@ void FN2CFlowControlProcessor::ExtractNodeProperties(UK2Node* Node, FN2CNodeDefi
         
         // Log sequence details
         FString SequenceInfo = FString::Printf(TEXT("Sequence Node: %s"), *OutNodeDef.ID);
+        OutNodeDef.Note = SequenceInfo;
         FN2CLogger::Get().Log(SequenceInfo, EN2CLogSeverity::Debug);
         return;
     }
@@ -22,6 +23,7 @@ void FN2CFlowControlProcessor::ExtractNodeProperties(UK2Node* Node, FN2CNodeDefi
         
         // Log branch details
         FString BranchInfo = FString::Printf(TEXT("Branch Node: %s"), *OutNodeDef.ID);
+        OutNodeDef.Note = BranchInfo;
         FN2CLogger::Get().Log(BranchInfo, EN2CLogSeverity::Debug);
         return;
     }
@@ -48,6 +50,7 @@ void FN2CFlowControlProcessor::ExtractNodeProperties(UK2Node* Node, FN2CNodeDefi
         FString SelectInfo = FString::Printf(TEXT("Select Node: %s, Options: %d"), 
             *OutNodeDef.ID,
             OptionPins.Num());
+        OutNodeDef.Note = SelectInfo;
         FN2CLogger::Get().Log(SelectInfo, EN2CLogSeverity::Debug);
         return;
     }
@@ -59,6 +62,7 @@ void FN2CFlowControlProcessor::ExtractNodeProperties(UK2Node* Node, FN2CNodeDefi
         
         // Log switch details
         FString SwitchInfo = FString::Printf(TEXT("Switch Node: %s"), *OutNodeDef.ID);
+        OutNodeDef.Note = SwitchInfo;
         FN2CLogger::Get().Log(SwitchInfo, EN2CLogSeverity::Debug);
         return;
     }
@@ -82,6 +86,7 @@ void FN2CFlowControlProcessor::ExtractNodeProperties(UK2Node* Node, FN2CNodeDefi
         FString GateInfo = FString::Printf(TEXT("Multi Gate Node: %s, Outputs: %d"), 
             *OutNodeDef.ID,
             OutPins.Num());
+        OutNodeDef.Note = GateInfo;
         FN2CLogger::Get().Log(GateInfo, EN2CLogSeverity::Debug);
         return;
     }
@@ -93,6 +98,7 @@ void FN2CFlowControlProcessor::ExtractNodeProperties(UK2Node* Node, FN2CNodeDefi
         
         // Log do-once details
         FString DoOnceInfo = FString::Printf(TEXT("Do Once Multi Input Node: %s"), *OutNodeDef.ID);
+        OutNodeDef.Note = DoOnceInfo;
         FN2CLogger::Get().Log(DoOnceInfo, EN2CLogSeverity::Debug);
         return;
     }

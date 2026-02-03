@@ -18,6 +18,7 @@ void FN2CDelegateProcessor::ExtractNodeProperties(UK2Node* Node, FN2CNodeDefinit
             *OutNodeDef.Name,
             *OutNodeDef.MemberName,
             *OutNodeDef.MemberParent);
+        OutNodeDef.Note = DelegateInfo;
         FN2CLogger::Get().Log(DelegateInfo, EN2CLogSeverity::Debug);
         return;
     }
@@ -46,6 +47,7 @@ void FN2CDelegateProcessor::ExtractNodeProperties(UK2Node* Node, FN2CNodeDefinit
             *OutNodeDef.Name,
             *OutNodeDef.MemberName,
             *OutNodeDef.MemberParent);
+        OutNodeDef.Note = CreateDelegateInfo;
         FN2CLogger::Get().Log(CreateDelegateInfo, EN2CLogSeverity::Debug);
         return;
     }
@@ -67,6 +69,7 @@ void FN2CDelegateProcessor::ExtractNodeProperties(UK2Node* Node, FN2CNodeDefinit
             *OutNodeDef.Name,
             *OutNodeDef.MemberName,
             *OutNodeDef.MemberParent);
+        OutNodeDef.Note = CallDelegateInfo;
         FN2CLogger::Get().Log(CallDelegateInfo, EN2CLogSeverity::Debug);
         return;
     }

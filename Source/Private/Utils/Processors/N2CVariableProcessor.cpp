@@ -69,5 +69,6 @@ void FN2CVariableProcessor::ExtractNodeProperties(UK2Node* Node, FN2CNodeDefinit
     FString VarInfo = FString::Printf(TEXT("Variable: %s, Type: %s"),
         *OutNodeDef.MemberName,
         *OutNodeDef.MemberParent);
+    OutNodeDef.Note = VarInfo;
     FN2CLogger::Get().Log(VarInfo, EN2CLogSeverity::Debug);
 }

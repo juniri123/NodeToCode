@@ -221,6 +221,9 @@ struct FN2CNodeDefinition
     /** Comment that was added to the node */
     FString Comment;
 
+    /** Processor-generated short note for this node */
+    FString Note;
+
     /** Node behavior flags */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Node to Code")
     uint8 bPure:1;        // Pure vs Impure function
@@ -242,6 +245,7 @@ struct FN2CNodeDefinition
         , MemberParent(TEXT(""))
         , MemberName(TEXT(""))
         , Comment(TEXT(""))
+        , Note(TEXT(""))
         , bPure(false)
         , bLatent(false)
     {

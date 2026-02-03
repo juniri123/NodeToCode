@@ -15,6 +15,7 @@ void FN2CCastProcessor::ExtractNodeProperties(UK2Node* Node, FN2CNodeDefinition&
             FString CastInfo = FString::Printf(TEXT("Dynamic Cast: %s, Target Type: %s"),
                 *OutNodeDef.Name,
                 *OutNodeDef.MemberName);
+            OutNodeDef.Note = CastInfo;
             FN2CLogger::Get().Log(CastInfo, EN2CLogSeverity::Debug);
         }
         return;
@@ -31,6 +32,7 @@ void FN2CCastProcessor::ExtractNodeProperties(UK2Node* Node, FN2CNodeDefinition&
             FString CastInfo = FString::Printf(TEXT("Class Dynamic Cast: %s, Target Type: %s"),
                 *OutNodeDef.Name,
                 *OutNodeDef.MemberName);
+            OutNodeDef.Note = CastInfo;
             FN2CLogger::Get().Log(CastInfo, EN2CLogSeverity::Debug);
         }
         return;
@@ -47,6 +49,7 @@ void FN2CCastProcessor::ExtractNodeProperties(UK2Node* Node, FN2CNodeDefinition&
             FString CastInfo = FString::Printf(TEXT("Byte To Enum Cast: %s, Enum Type: %s"),
                 *OutNodeDef.Name,
                 *OutNodeDef.MemberName);
+            OutNodeDef.Note = CastInfo;
             FN2CLogger::Get().Log(CastInfo, EN2CLogSeverity::Debug);
         }
         return;

@@ -18,6 +18,7 @@ void FN2CFunctionEntryProcessor::ExtractNodeProperties(UK2Node* Node, FN2CNodeDe
             *OutNodeDef.Name,
             *OutNodeDef.MemberName,
             *OutNodeDef.MemberParent);
+        OutNodeDef.Note = EntryInfo;
         FN2CLogger::Get().Log(EntryInfo, EN2CLogSeverity::Debug);
         return;
     }
@@ -34,6 +35,7 @@ void FN2CFunctionEntryProcessor::ExtractNodeProperties(UK2Node* Node, FN2CNodeDe
         FString ResultInfo = FString::Printf(TEXT("Function Result: %s, Class: %s"),
             *OutNodeDef.Name,
             *OutNodeDef.MemberParent);
+        OutNodeDef.Note = ResultInfo;
         FN2CLogger::Get().Log(ResultInfo, EN2CLogSeverity::Debug);
         return;
     }
@@ -55,6 +57,7 @@ void FN2CFunctionEntryProcessor::ExtractNodeProperties(UK2Node* Node, FN2CNodeDe
             *OutNodeDef.Name,
             *OutNodeDef.MemberName,
             *OutNodeDef.MemberParent);
+        OutNodeDef.Note = MacroInfo;
         FN2CLogger::Get().Log(MacroInfo, EN2CLogSeverity::Debug);
         return;
     }
