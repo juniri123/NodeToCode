@@ -7,6 +7,34 @@
 
 namespace N2CFlow
 {
+    Pin::Pin(FString InPinName, FString InPinGuid, FString InNodeName, FString InNodeGuid)
+    {
+        Name = MoveTemp(InPinName);
+        Guid = MoveTemp(InPinGuid);
+        NodeName = MoveTemp(InNodeName);
+        NodeGuid = MoveTemp(InNodeGuid);
+    }
+
+    Link::Link(Pin InFrom, Pin InTo)
+    {
+        FromPin = MoveTemp(InFrom);
+        ToPin = MoveTemp(InTo);
+    }
+
+    Node::Node(FString InName, FString InGuid)
+    {
+        Name = MoveTemp(InName);
+        Guid = MoveTemp(InGuid);
+    }
+
+    MergingGroup::MergingGroup(TSharedPtr<Step> InCommonStep, TSharedPtr<Step> InMergingPointStep, TArray<TSharedPtr<Step>> InPlaceholders, bool bInIsFallthrough)
+    {
+        CommonStep = MoveTemp(InCommonStep);
+        MergingPointStep = MoveTemp(InMergingPointStep);
+        Placeholders = MoveTemp(InPlaceholders);
+        bIsFallthrough = bInIsFallthrough;
+    }
+
     // Pin 배열을 JSON 배열로 변환
     static TArray<TSharedPtr<FJsonValue>> PinsToJsonArray(const TArray<Pin>& Pins)
     {
