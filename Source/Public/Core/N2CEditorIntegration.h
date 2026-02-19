@@ -75,6 +75,9 @@ private:
     /** Execute open save folder for a specific editor */
     void ExecuteOpenSaveFolderForEditor(TWeakPtr<FBlueprintEditor> InEditor);
 
+    /** Execute BP to C++ conversion using MCP workflow */
+    void ExecuteBp2CppUsingMCP(TWeakPtr<FBlueprintEditor> InEditor);
+
     /** Execute copy flow text to clipboard for a specific editor */
     void ExecuteCopyFlowTextForEditor(TWeakPtr<FBlueprintEditor> InEditor);
 

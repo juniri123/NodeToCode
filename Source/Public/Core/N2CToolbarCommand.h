@@ -23,6 +23,7 @@ public:
     TSharedPtr<FUICommandInfo> SaveFlowJsonCommand;
     TSharedPtr<FUICommandInfo> SaveFlowTextCommand;
     TSharedPtr<FUICommandInfo> OpenSaveFolderCommand;
+    TSharedPtr<FUICommandInfo> Bp2CppMcpCommand;
     TSharedPtr<FUICommandInfo> CopyFlowJsonCommand;
     TSharedPtr<FUICommandInfo> CopyFlowTextCommand;
     TSharedPtr<FUICommandInfo> CopyParsedJsonCommand;
@@ -37,6 +38,7 @@ public:
     static const FName CommandName_SaveFlowJson;
     static const FName CommandName_SaveFlowText;
     static const FName CommandName_OpenSaveFolder;
+    static const FName CommandName_Bp2CppMcp;
     static const FName CommandName_CopyFlowJson;
     static const FName CommandName_CopyFlowText;
     static const FName CommandName_CopyParsedJson;
@@ -49,6 +51,7 @@ public:
     static const FText CommandLabel_SaveFlowJson;
     static const FText CommandLabel_SaveFlowText;
     static const FText CommandLabel_OpenSaveFolder;
+    static const FText CommandLabel_Bp2CppMcp;
     static const FText CommandLabel_CopyFlowJson;
     static const FText CommandLabel_CopyFlowText;
     static const FText CommandLabel_CopyParsedJson;
@@ -61,6 +64,7 @@ public:
     static const FText CommandTooltip_SaveFlowJson;
     static const FText CommandTooltip_SaveFlowText;
     static const FText CommandTooltip_OpenSaveFolder;
+    static const FText CommandTooltip_Bp2CppMcp;
     static const FText CommandTooltip_CopyFlowJson;
     static const FText CommandTooltip_CopyFlowText;
     static const FText CommandTooltip_CopyParsedJson;

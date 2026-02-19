@@ -13,6 +13,7 @@
 #include "Core/N2CSerializer.h"
 #include "Core/N2CSettings.h"
 #include "Core/N2CToolbarCommand.h"
+#include "MCP/N2CMcpModule.h"
 #include "HAL/PlatformFileManager.h"
 #include "HAL/PlatformProcess.h"
 #include "LLM/N2CLLMModule.h"
@@ -598,6 +599,168 @@ void FN2CEditorIntegration::ExecuteOpenSaveFolderForEditor(TWeakPtr<FBlueprintEd
     FPlatformProcess::ExploreFolder(*RootPath);
 }
 
+void FN2CEditorIntegration::ExecuteBp2CppUsingMCP(TWeakPtr<FBlueprintEditor> InEditor)
+{
+    FN2CLogger::Get().Log(TEXT("ExecuteBp2CppUsingMCP called"), EN2CLogSeverity::Debug);
+
+    TSharedPtr<FBlueprintEditor> Editor = InEditor.Pin();
+    if (!Editor.IsValid())
+    {
+        FN2CLogger::Get().LogError(TEXT("Invalid Blueprint Editor pointer"));
+        return;
+    }
+
+    UEdGraph* FocusedGraph = Editor->GetFocusedGraph();
+    if (!FocusedGraph)
+    {
+        FN2CLogger::Get().LogError(TEXT("No focused graph in Blueprint Editor"));
+        return;
+    }
+
+    FString BlueprintName = TEXT("Unknown");
+    if (UBlueprint* Blueprint = Cast<UBlueprint>(FocusedGraph->GetOuter()))
+    {
+        BlueprintName = Blueprint->GetName();
+    }
+
+    const UN2CSettings* Settings = GetDefault<UN2CSettings>();
+    if (!Settings)
+    {
+        FN2CLogger::Get().LogError(TEXT("Failed to load N2C settings for MCP workflow"));
+        return;
+    }
+
+    TArray<UK2Node*> CollectedNodes;
+    FString SafeGraphName;
+    FString RootPath;
+    FString FlowDir;
+    if (!PrepareSaveContext(InEditor, CollectedNodes, SafeGraphName, RootPath, FlowDir))
+    {
+        return;
+    }
+
+    FString FlowJson;
+    FString ParsedJson;
+    FString FlowText;
+    FString BlueprintJson;
+
+    if (Settings->bMcpIncludeFlowJson)
+    {
+        FString FlowError;
+        if (!FN2CFlowBuilder::BuildFlowJsonFromNodes(CollectedNodes, FlowJson, FlowError))
+        {
+            FN2CLogger::Get().LogError(FString::Printf(TEXT("Failed to build flow JSON: %s"), *FlowError));
+            return;
+        }
+    }
+
+    if (Settings->bMcpIncludeParsedJson)
+    {
+        FString ParsedJsonError;
+        if (!FN2CParsedDumpBuilder::BuildParsedJsonFromNodes(CollectedNodes, ParsedJson, ParsedJsonError))
+        {
+            FN2CLogger::Get().LogError(FString::Printf(TEXT("Failed to build parsed JSON: %s"), *ParsedJsonError));
+            return;
+        }
+    }
+
+    if (Settings->bMcpIncludeFlowText)
+    {
+        FString FlowTextError;
+        if (!FN2CFlowBuilder::BuildFlowTextFromNodes(CollectedNodes, FlowText, FlowTextError))
+        {
+            FN2CLogger::Get().LogError(FString::Printf(TEXT("Failed to build flow text: %s"), *FlowTextError));
+            return;
+        }
+    }
+
+    if (Settings->bMcpIncludeBlueprintJson)
+    {
+        FN2CNodeTranslator& Translator = FN2CNodeTranslator::Get();
+        if (!Translator.GenerateN2CStruct(CollectedNodes))
+        {
+            FN2CLogger::Get().LogError(TEXT("Failed to translate nodes for Blueprint JSON (MCP)"));
+            return;
+        }
+
+        const FN2CBlueprint& Blueprint = Translator.GetN2CBlueprint();
+        if (!Blueprint.IsValid())
+        {
+            FN2CLogger::Get().LogError(TEXT("Generated Blueprint JSON data is invalid (MCP)"));
+            return;
+        }
+
+        FN2CSerializer::SetPrettyPrint(true);
+        BlueprintJson = FN2CSerializer::ToJson(Blueprint);
+        if (BlueprintJson.IsEmpty())
+        {
+            FN2CLogger::Get().LogError(TEXT("Blueprint JSON serialization failed (MCP)"));
+            return;
+        }
+    }
+
+    FString PromptText;
+    if (!Settings->McpPromptFilePath.FilePath.IsEmpty())
+    {
+        if (!FFileHelper::LoadFileToString(PromptText, *Settings->McpPromptFilePath.FilePath))
+        {
+            FN2CLogger::Get().LogWarning(FString::Printf(TEXT("Failed to load MCP prompt file: %s"), *Settings->McpPromptFilePath.FilePath));
+        }
+    }
+
+    FN2CMcpSessionRequest Request;
+    Request.FlowJson = FlowJson;
+    Request.ParsedJson = ParsedJson;
+    Request.FlowText = FlowText;
+    Request.BlueprintJson = BlueprintJson;
+    Request.PromptText = PromptText;
+    Request.GraphName = SafeGraphName;
+    Request.BlueprintName = BlueprintName;
+    Request.PayloadMode = Settings->McpPayloadMode;
+    Request.ServerBaseUrl = Settings->McpServerBaseUrl;
+    Request.SessionCreateEndpoint = Settings->McpSessionCreateEndpoint;
+
+    if (Settings->McpPayloadMode == EN2CMcpPayloadMode::FilePaths)
+    {
+        if (!FlowJson.IsEmpty())
+        {
+            const FString FlowJsonPath = FPaths::Combine(FlowDir, FString::Printf(TEXT("%s_flow.json"), *SafeGraphName));
+            if (FFileHelper::SaveStringToFile(FlowJson, *FlowJsonPath))
+            {
+                Request.FlowFilename = FPaths::GetCleanFilename(FlowJsonPath);
+            }
+        }
+
+        if (!ParsedJson.IsEmpty())
+        {
+            const FString ParsedJsonPath = FPaths::Combine(FlowDir, FString::Printf(TEXT("%s_parsed.json"), *SafeGraphName));
+            if (FFileHelper::SaveStringToFile(ParsedJson, *ParsedJsonPath))
+            {
+                Request.ParsedFilename = FPaths::GetCleanFilename(ParsedJsonPath);
+            }
+        }
+    }
+
+    UN2CMcpModule::Get()->CreateSessionAsync(
+        Request,
+        UN2CMcpModule::FN2CMcpSessionComplete::CreateLambda(
+            [BlueprintName](bool bSuccess, const FString& SessionId, const FString& Error)
+            {
+                if (!bSuccess)
+                {
+                    FN2CLogger::Get().LogWarning(FString::Printf(TEXT("MCP session creation failed: %s"), *Error));
+                    return;
+                }
+
+                FN2CLogger::Get().Log(
+                    FString::Printf(TEXT("MCP session created for Blueprint %s: %s"), *BlueprintName, *SessionId),
+                    EN2CLogSeverity::Info
+                );
+            }
+        )
+    );
+}
+
 // N2C 확장: Flow 텍스트 클립보드 복사
 void FN2CEditorIntegration::ExecuteCopyFlowTextForEditor(TWeakPtr<FBlueprintEditor> InEditor)
 {
@@ -1118,6 +1281,27 @@ void FN2CEditorIntegration::RegisterToolbarForEditor(TSharedPtr<FBlueprintEditor
     );
 
     CommandList->MapAction(
+        FN2CToolbarCommand::Get().Bp2CppMcpCommand,
+        FExecuteAction::CreateLambda([this, WeakEditor, BlueprintName]()
+        {
+            FN2CLogger::Get().Log(
+                FString::Printf(TEXT("BP --> CPP (MCP) triggered for Blueprint: %s"), *BlueprintName),
+                EN2CLogSeverity::Info
+            );
+            ExecuteBp2CppUsingMCP(WeakEditor);
+        }),
+        FCanExecuteAction::CreateLambda([WeakEditor]()
+        {
+            TSharedPtr<FBlueprintEditor> Editor = WeakEditor.Pin();
+            if (!Editor.IsValid())
+            {
+                return false;
+            }
+            return Editor->GetCurrentMode() == FBlueprintEditorApplicationModes::StandardBlueprintEditorMode;
+        })
+    );
+
+    CommandList->MapAction(
         FN2CToolbarCommand::Get().CopyParsedJsonCommand,
         FExecuteAction::CreateLambda([this, WeakEditor, BlueprintName]()
         {
@@ -1173,6 +1357,8 @@ void FN2CEditorIntegration::RegisterToolbarForEditor(TSharedPtr<FBlueprintEditor
                     MenuBuilder.AddMenuEntry(FN2CToolbarCommand::Get().SaveFlowTextCommand);
                     MenuBuilder.AddMenuSeparator();
                     MenuBuilder.AddMenuEntry(FN2CToolbarCommand::Get().OpenSaveFolderCommand);
+                    MenuBuilder.AddMenuSeparator();
+                    MenuBuilder.AddMenuEntry(FN2CToolbarCommand::Get().Bp2CppMcpCommand);
                     MenuBuilder.AddMenuSeparator();
                     MenuBuilder.AddMenuEntry(FN2CToolbarCommand::Get().CopyParsedJsonCommand);
                     MenuBuilder.AddMenuEntry(FN2CToolbarCommand::Get().CopyFlowJsonCommand);

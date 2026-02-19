@@ -364,6 +364,13 @@ struct FN2CCodeEditorThemes
 
 
 // Questions? Check out the Docs: github.com/protospatial/NodeToCode/wiki
+UENUM(BlueprintType)
+enum class EN2CMcpPayloadMode : uint8
+{
+    RawContent UMETA(DisplayName = "Raw Content"),
+    FilePaths UMETA(DisplayName = "File Paths")
+};
+
 UCLASS(Config = NodeToCode, DefaultConfig, meta = (Category = "Node to Code", DisplayName = "Node to Code"))
 class NODETOCODE_API UN2CSettings : public UDeveloperSettings
 {
@@ -627,6 +634,50 @@ public:
         meta = (DisplayName = "Custom Translation Output Directory",
                ToolTip="If set, translations will be saved to this directory instead of the default location in Saved/NodeToCode/Translations"))
     FDirectoryPath CustomTranslationOutputDirectory;
+
+    /** MCP server base URL */
+    UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Node to Code | BP2CPP (MCP)",
+        meta = (DisplayName = "Server Base URL",
+               ToolTip = "Base URL for the MCP server (e.g., http://localhost:3000)"))
+    FString McpServerBaseUrl = "http://localhost:3000";
+
+    /** MCP session create endpoint */
+    UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Node to Code | BP2CPP (MCP)",
+        meta = (DisplayName = "Session Create Endpoint",
+               ToolTip = "Endpoint path for session creation (e.g., /api/session/create)"))
+    FString McpSessionCreateEndpoint = "/api/session/create";
+
+    /** MCP prompt file path */
+    UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Node to Code | BP2CPP (MCP)",
+        meta = (DisplayName = "Prompt File",
+               ToolTip = "Prompt file used for MCP workflow"))
+    FFilePath McpPromptFilePath;
+
+    /** MCP payload mode */
+    UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Node to Code | BP2CPP (MCP)",
+        meta = (DisplayName = "Payload Mode",
+               ToolTip = "Choose whether to send raw content or file paths"))
+    EN2CMcpPayloadMode McpPayloadMode = EN2CMcpPayloadMode::RawContent;
+
+    /** Include flow.json */
+    UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Node to Code | BP2CPP (MCP)",
+        meta = (DisplayName = "Include Flow JSON"))
+    bool bMcpIncludeFlowJson = true;
+
+    /** Include flow.txt */
+    UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Node to Code | BP2CPP (MCP)",
+        meta = (DisplayName = "Include Flow Text"))
+    bool bMcpIncludeFlowText = true;
+
+    /** Include parsed.json */
+    UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Node to Code | BP2CPP (MCP)",
+        meta = (DisplayName = "Include Parsed JSON"))
+    bool bMcpIncludeParsedJson = true;
+
+    /** Include blueprint.json */
+    UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Node to Code | BP2CPP (MCP)",
+        meta = (DisplayName = "Include Blueprint JSON"))
+    bool bMcpIncludeBlueprintJson = false;
     
     /** Validate all reference source file paths */
     void ValidateReferenceSourcePaths();
