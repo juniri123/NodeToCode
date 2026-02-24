@@ -34,6 +34,20 @@ public:
     FName GetDefaultTheme(EN2CCodeLanguage Language) const;
 
 private:
+#region MCP Workflow
+    struct FMcpLlmContext
+    {
+        FString BlueprintName;
+        FString PromptText;
+    };
+
+    void OnMcpSessionComplete(bool bSuccess, const FString& SessionId, const FString& Error);
+    void SendMcpRequestToLLM(const FString& SessionId);
+    void OnMcpLlmResponse(const FString& Response);
+
+    TSharedPtr<FMcpLlmContext> PendingMcpContext;
+#endregion
+
     /** Constructor */
     FN2CEditorIntegration() = default;
 

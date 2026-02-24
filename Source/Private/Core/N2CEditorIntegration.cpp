@@ -601,7 +601,19 @@ void FN2CEditorIntegration::ExecuteOpenSaveFolderForEditor(TWeakPtr<FBlueprintEd
 
 void FN2CEditorIntegration::ExecuteBp2CppUsingMCP(TWeakPtr<FBlueprintEditor> InEditor)
 {
+    // Check if translation is already in progress
+    UN2CLLMModule* LLMModule = UN2CLLMModule::Get();
+    if (LLMModule && LLMModule->GetSystemStatus() == EN2CSystemStatus::Processing)
+    {
+        FN2CLogger::Get().LogWarning(TEXT("Translation already in progress, please wait"));
+        return;
+    }
+
     FN2CLogger::Get().Log(TEXT("ExecuteBp2CppUsingMCP called"), EN2CLogSeverity::Debug);
+
+    // Show the window as a tab (match common flow)
+    FGlobalTabmanager::Get()->TryInvokeTab(SN2CEditorWindow::TabId);
+    FN2CLogger::Get().Log(TEXT("Node to Code window shown"), EN2CLogSeverity::Debug);
 
     TSharedPtr<FBlueprintEditor> Editor = InEditor.Pin();
     if (!Editor.IsValid())
@@ -741,24 +753,84 @@ void FN2CEditorIntegration::ExecuteBp2CppUsingMCP(TWeakPtr<FBlueprintEditor> InE
         }
     }
 
+    PendingMcpContext = MakeShared<FMcpLlmContext>();
+    PendingMcpContext->BlueprintName = BlueprintName;
+    PendingMcpContext->PromptText = PromptText;
+
     UN2CMcpModule::Get()->CreateSessionAsync(
         Request,
-        UN2CMcpModule::FN2CMcpSessionComplete::CreateLambda(
-            [BlueprintName](bool bSuccess, const FString& SessionId, const FString& Error)
-            {
-                if (!bSuccess)
-                {
-                    FN2CLogger::Get().LogWarning(FString::Printf(TEXT("MCP session creation failed: %s"), *Error));
-                    return;
-                }
-
-                FN2CLogger::Get().Log(
-                    FString::Printf(TEXT("MCP session created for Blueprint %s: %s"), *BlueprintName, *SessionId),
-                    EN2CLogSeverity::Info
-                );
-            }
+        UN2CMcpModule::FN2CMcpSessionComplete::CreateRaw(
+            this,
+            &FN2CEditorIntegration::OnMcpSessionComplete
         )
     );
+}
+
+void FN2CEditorIntegration::OnMcpSessionComplete(bool bSuccess, const FString& SessionId, const FString& Error)
+{
+    if (!bSuccess)
+    {
+        FN2CLogger::Get().LogWarning(FString::Printf(TEXT("MCP session creation failed: %s"), *Error));
+        return;
+    }
+
+    const FString BlueprintName = PendingMcpContext ? PendingMcpContext->BlueprintName : TEXT("Unknown");
+    FN2CLogger::Get().Log(
+        FString::Printf(TEXT("MCP session created for Blueprint %s: %s"), *BlueprintName, *SessionId),
+        EN2CLogSeverity::Info
+    );
+
+    SendMcpRequestToLLM(SessionId);
+}
+
+void FN2CEditorIntegration::SendMcpRequestToLLM(const FString& SessionId)
+{
+    UN2CLLMModule* LLMModule = UN2CLLMModule::Get();
+    if (!LLMModule)
+    {
+        FN2CLogger::Get().LogError(TEXT("LLM Module not available for MCP request"));
+        return;
+    }
+
+    if (!LLMModule->Initialize())
+    {
+        FN2CLogger::Get().LogError(TEXT("Failed to initialize LLM Module for MCP request"));
+        return;
+    }
+
+    const FString McpPayload = FString::Printf(TEXT("{\"session_id\":\"%s\"}"), *SessionId);
+    const FString PromptText = PendingMcpContext ? PendingMcpContext->PromptText : FString();
+
+    TScriptInterface<IN2CLLMService> ActiveService = LLMModule->GetActiveService();
+    if (!ActiveService.GetInterface())
+    {
+        FN2CLogger::Get().LogError(TEXT("No active LLM service for MCP request"));
+        return;
+    }
+
+    ActiveService->SendRequest(
+        McpPayload,
+        PromptText,
+        FOnLLMResponseReceived::CreateRaw(
+            this,
+            &FN2CEditorIntegration::OnMcpLlmResponse
+        )
+    );
+}
+
+void FN2CEditorIntegration::OnMcpLlmResponse(const FString& Response)
+{
+    // Placeholder parse flow for MCP responses
+    FN2CTranslationResponse TranslationResponse;
+    const bool bParsed = false;
+    if (bParsed)
+    {
+        FN2CLogger::Get().Log(TEXT("Successfully parsed MCP LLM response"), EN2CLogSeverity::Info);
+    }
+    else
+    {
+        FN2CLogger::Get().LogWarning(TEXT("MCP response parser not implemented"));
+    }
 }
 
 // N2C 확장: Flow 텍스트 클립보드 복사
