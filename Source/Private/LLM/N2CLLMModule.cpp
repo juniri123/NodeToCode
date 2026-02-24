@@ -241,30 +241,6 @@ void UN2CLLMModule::ClearPendingFlowJson()
     bHasPendingFlowJson = false;
 }
 
-// N2C 확장: Flow 그래프 이름 임시 보관
-void UN2CLLMModule::SetPendingFlowGraphName(const FString& InGraphName)
-{
-    PendingFlowGraphName = InGraphName;
-    bHasPendingFlowGraphName = !PendingFlowGraphName.IsEmpty();
-}
-
-bool UN2CLLMModule::GetPendingFlowGraphName(FString& OutGraphName) const
-{
-    if (!bHasPendingFlowGraphName || PendingFlowGraphName.IsEmpty())
-    {
-        return false;
-    }
-
-    OutGraphName = PendingFlowGraphName;
-    return true;
-}
-
-void UN2CLLMModule::ClearPendingFlowGraphName()
-{
-    PendingFlowGraphName.Reset();
-    bHasPendingFlowGraphName = false;
-}
-
 // N2C 확장: 폴더명 생성에 사용할 CL 번호를 저장
 void UN2CLLMModule::SetPendingBlueprintChangeList(const FString& InChangeList)
 {
@@ -366,73 +342,6 @@ bool UN2CLLMModule::SaveTranslationToDisk(const FN2CTranslationResponse& Respons
     // Store the path for later reference
     LatestTranslationPath = RootPath;
 
-    // flow.json 저장 (N2C 확장)
-    FString FlowJson;
-    if (GetPendingFlowJson(FlowJson))
-    {
-        const FString FlowDir = FPaths::Combine(RootPath, TEXT("python"));
-        if (EnsureDirectoryExists(FlowDir))
-        {
-            FString GraphName;
-            const bool bHasGraphName = GetPendingFlowGraphName(GraphName);
-            const FString SafeGraphName = bHasGraphName ? FPaths::MakeValidFileName(GraphName) : FString();
-            const FString FlowFileName = bHasGraphName && !SafeGraphName.IsEmpty()
-                ? FString::Printf(TEXT("%s_flow.json"), *SafeGraphName)
-                : TEXT("flow.json");
-            const FString FlowFilePath = FPaths::Combine(FlowDir, FlowFileName);
-            if (!FFileHelper::SaveStringToFile(FlowJson, *FlowFilePath))
-            {
-                FN2CLogger::Get().LogWarning(FString::Printf(TEXT("Failed to save flow JSON: %s"), *FlowFilePath));
-            }
-        }
-        ClearPendingFlowJson();
-    }
-
-    // flow.txt 저장 (N2C 확장)
-    FString FlowText;
-    if (GetPendingFlowText(FlowText))
-    {
-        const FString FlowDir = FPaths::Combine(RootPath, TEXT("python"));
-        if (EnsureDirectoryExists(FlowDir))
-        {
-            FString GraphName;
-            const bool bHasGraphName = GetPendingFlowGraphName(GraphName);
-            const FString SafeGraphName = bHasGraphName ? FPaths::MakeValidFileName(GraphName) : FString();
-            const FString FlowTextName = bHasGraphName && !SafeGraphName.IsEmpty()
-                ? FString::Printf(TEXT("%s_flow.txt"), *SafeGraphName)
-                : TEXT("flow.txt");
-            const FString FlowTextPath = FPaths::Combine(FlowDir, FlowTextName);
-            if (!FFileHelper::SaveStringToFile(FlowText, *FlowTextPath))
-            {
-                FN2CLogger::Get().LogWarning(FString::Printf(TEXT("Failed to save flow text: %s"), *FlowTextPath));
-            }
-        }
-        ClearPendingFlowText();
-    }
-
-    // parsed.json 저장 (N2C 확장)
-    FString ParsedJson;
-    if (GetPendingParsedJson(ParsedJson))
-    {
-        const FString FlowDir = FPaths::Combine(RootPath, TEXT("python"));
-        if (EnsureDirectoryExists(FlowDir))
-        {
-            FString GraphName;
-            const bool bHasGraphName = GetPendingFlowGraphName(GraphName);
-            const FString SafeGraphName = bHasGraphName ? FPaths::MakeValidFileName(GraphName) : FString();
-            const FString ParsedName = bHasGraphName && !SafeGraphName.IsEmpty()
-                ? FString::Printf(TEXT("%s_parsed.json"), *SafeGraphName)
-                : TEXT("parsed.json");
-            const FString ParsedPath = FPaths::Combine(FlowDir, ParsedName);
-            if (!FFileHelper::SaveStringToFile(ParsedJson, *ParsedPath))
-            {
-                FN2CLogger::Get().LogWarning(FString::Printf(TEXT("Failed to save parsed JSON: %s"), *ParsedPath));
-            }
-        }
-        ClearPendingParsedJson();
-    }
-
-    ClearPendingFlowGraphName();
     ClearPendingBlueprintChangeList();
     
     // Save the Blueprint JSON (pretty-printed)

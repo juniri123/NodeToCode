@@ -78,12 +78,6 @@ public:
     /** flow.json 버퍼 초기화 */
     void ClearPendingFlowJson();
 
-    /** flow 파일 이름에 사용할 그래프 이름 저장 */
-    void SetPendingFlowGraphName(const FString& InGraphName);
-    /** flow 파일 이름에 사용할 그래프 이름 조회 */
-    bool GetPendingFlowGraphName(FString& OutGraphName) const;
-    /** flow 그래프 이름 초기화 */
-    void ClearPendingFlowGraphName();
 
     /** 저장 경로에 사용할 블루프린트 CL 저장 */
     void SetPendingBlueprintChangeList(const FString& InChangeList);
@@ -162,8 +156,6 @@ private:
     FString PendingFlowJson;
     bool bHasPendingFlowJson = false;
 
-    FString PendingFlowGraphName;
-    bool bHasPendingFlowGraphName = false;
 
     FString PendingBlueprintChangeList;
     bool bHasPendingBlueprintChangeList = false;

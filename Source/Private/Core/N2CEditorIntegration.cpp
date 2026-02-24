@@ -1499,44 +1499,6 @@ void FN2CEditorIntegration::ExecuteCollectNodesForEditor(TWeakPtr<FBlueprintEdit
                     FN2CLogger::Get().Log(TEXT("JSON Output:"), EN2CLogSeverity::Debug);                                                                                                                       
                     FN2CLogger::Get().Log(JsonOutput, EN2CLogSeverity::Debug);
 
-                    LLMModule->SetPendingFlowGraphName(GraphName);
-
-                    FString FlowJson;
-                    FString FlowError;
-                    if (FN2CFlowBuilder::BuildFlowJsonFromNodes(CollectedNodes, FlowJson, FlowError))
-                    {
-                        LLMModule->SetPendingFlowJson(FlowJson);
-                        FN2CLogger::Get().Log(TEXT("Flow JSON generated successfully"), EN2CLogSeverity::Info);
-                    }
-                    else
-                    {
-                        FN2CLogger::Get().LogWarning(FString::Printf(TEXT("Failed to build flow JSON: %s"), *FlowError));
-                    }
-
-                    FString FlowText;
-                    FString FlowTextError;
-                    if (FN2CFlowBuilder::BuildFlowTextFromNodes(CollectedNodes, FlowText, FlowTextError))
-                    {
-                        LLMModule->SetPendingFlowText(FlowText);
-                        FN2CLogger::Get().Log(TEXT("Flow text generated successfully"), EN2CLogSeverity::Info);
-                    }
-                    else
-                    {
-                        FN2CLogger::Get().LogWarning(FString::Printf(TEXT("Failed to build flow text: %s"), *FlowTextError));
-                    }
-
-                    FString ParsedJson;
-                    FString ParsedJsonError;
-                    if (FN2CParsedDumpBuilder::BuildParsedJsonFromNodes(CollectedNodes, ParsedJson, ParsedJsonError))
-                    {
-                        LLMModule->SetPendingParsedJson(ParsedJson);
-                        FN2CLogger::Get().Log(TEXT("Parsed JSON generated successfully"), EN2CLogSeverity::Info);
-                    }
-                    else
-                    {
-                        FN2CLogger::Get().LogWarning(FString::Printf(TEXT("Failed to build parsed JSON: %s"), *ParsedJsonError));
-                    }
-                    
                     if (LLMModule->Initialize())
                     {
                         // Send JSON to LLM service                                                                                                                                                        
