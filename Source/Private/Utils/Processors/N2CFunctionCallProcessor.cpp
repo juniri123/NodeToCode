@@ -21,7 +21,9 @@ void FN2CFunctionCallProcessor::ExtractNodeProperties(UK2Node* Node, FN2CNodeDef
             *OutNodeDef.MemberParent,
             *OutNodeDef.MemberName,
             OutNodeDef.bLatent ? TEXT("true") : TEXT("false"));
+        #pragma region ODS
         OutNodeDef.Note = FunctionInfo;
+        #pragma endregion
         FN2CLogger::Get().Log(FunctionInfo, EN2CLogSeverity::Debug);
     }
 }

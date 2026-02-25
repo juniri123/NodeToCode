@@ -16,8 +16,21 @@ public:
     // Commands
     TSharedPtr<FUICommandInfo> OpenWindowCommand;
     TSharedPtr<FUICommandInfo> CollectNodesCommand;
-    TSharedPtr<FUICommandInfo> SaveBlueprintJsonCommand;
     TSharedPtr<FUICommandInfo> CopyJsonCommand;
+    
+    // Command names and labels
+    static const FName CommandName_Open;
+    static const FName CommandName_Collect;
+    static const FName CommandName_CopyJson;
+    static const FText CommandLabel_Open;
+    static const FText CommandLabel_Collect;
+    static const FText CommandLabel_CopyJson;
+    static const FText CommandTooltip_Open;
+    static const FText CommandTooltip_Collect;
+    static const FText CommandTooltip_CopyJson;
+
+    #pragma region ODS
+    TSharedPtr<FUICommandInfo> SaveBlueprintJsonCommand;
     TSharedPtr<FUICommandInfo> SaveParsedFlowFilesCommand;
     TSharedPtr<FUICommandInfo> SaveParsedJsonCommand;
     TSharedPtr<FUICommandInfo> SaveFlowJsonCommand;
@@ -28,11 +41,7 @@ public:
     TSharedPtr<FUICommandInfo> CopyFlowTextCommand;
     TSharedPtr<FUICommandInfo> CopyParsedJsonCommand;
 
-    // Command names and labels
-    static const FName CommandName_Open;
-    static const FName CommandName_Collect;
     static const FName CommandName_SaveBlueprintJson;
-    static const FName CommandName_CopyJson;
     static const FName CommandName_SaveParsedFlowFiles;
     static const FName CommandName_SaveParsedJson;
     static const FName CommandName_SaveFlowJson;
@@ -42,10 +51,8 @@ public:
     static const FName CommandName_CopyFlowJson;
     static const FName CommandName_CopyFlowText;
     static const FName CommandName_CopyParsedJson;
-    static const FText CommandLabel_Open;
-    static const FText CommandLabel_Collect;
+
     static const FText CommandLabel_SaveBlueprintJson;
-    static const FText CommandLabel_CopyJson;
     static const FText CommandLabel_SaveParsedFlowFiles;
     static const FText CommandLabel_SaveParsedJson;
     static const FText CommandLabel_SaveFlowJson;
@@ -55,10 +62,8 @@ public:
     static const FText CommandLabel_CopyFlowJson;
     static const FText CommandLabel_CopyFlowText;
     static const FText CommandLabel_CopyParsedJson;
-    static const FText CommandTooltip_Open;
-    static const FText CommandTooltip_Collect;
+    
     static const FText CommandTooltip_SaveBlueprintJson;
-    static const FText CommandTooltip_CopyJson;
     static const FText CommandTooltip_SaveParsedFlowFiles;
     static const FText CommandTooltip_SaveParsedJson;
     static const FText CommandTooltip_SaveFlowJson;
@@ -68,4 +73,5 @@ public:
     static const FText CommandTooltip_CopyFlowJson;
     static const FText CommandTooltip_CopyFlowText;
     static const FText CommandTooltip_CopyParsedJson;
+    #pragma endregion
 };

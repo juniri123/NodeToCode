@@ -4,6 +4,7 @@
 
 class FJsonObject;
 
+#pragma region ODS
 namespace N2CFlow
 {
     struct Pin
@@ -140,3 +141,4 @@ namespace N2CFlow
         MergingGroup(TSharedPtr<Step> InCommonStep, TSharedPtr<Step> InMergingPointStep, TArray<TSharedPtr<Step>> InPlaceholders, bool bInIsFallthrough);
     };
 } // namespace N2CFlow
+#pragma endregion

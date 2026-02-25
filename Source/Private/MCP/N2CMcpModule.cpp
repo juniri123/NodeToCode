@@ -10,6 +10,7 @@
 #include "Serialization/JsonWriter.h"
 #include "Utils/N2CLogger.h"
 
+#pragma region ODS
 UN2CMcpModule* UN2CMcpModule::Get()
 {
     static UN2CMcpModule* Instance = nullptr;
@@ -172,3 +173,4 @@ void UN2CMcpModule::CreateSessionAsync(const FN2CMcpSessionRequest& Request, FN2
         OnComplete.ExecuteIfBound(false, FString(), Error);
     }
 }
+#pragma endregion

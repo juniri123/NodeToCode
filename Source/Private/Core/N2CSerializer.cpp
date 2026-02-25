@@ -180,10 +180,12 @@ TSharedPtr<FJsonObject> FN2CSerializer::NodeToJsonObject(const FN2CNodeDefinitio
     {
         JsonObject->SetStringField(TEXT("comment"), Node.Comment);
     }
+    #pragma region ODS
     if (!Node.Note.IsEmpty())
     {
         JsonObject->SetStringField(TEXT("note"), Node.Note);
     }
+    #pragma endregion
     
     // Only add flags if true
     if (Node.bPure)
@@ -571,7 +573,7 @@ bool FN2CSerializer::ParseNodeFromJson(const TSharedPtr<FJsonObject>& JsonObject
     }
 
     // Parse basic properties
-    FString ID, TypeString, Name, MemberParent, MemberName, Comment, Note;
+    FString ID, TypeString, Name, MemberParent, MemberName, Comment;
     if (!JsonObject->TryGetStringField(TEXT("id"), ID) ||
         !JsonObject->TryGetStringField(TEXT("type"), TypeString) ||
         !JsonObject->TryGetStringField(TEXT("name"), Name))
@@ -587,16 +589,15 @@ bool FN2CSerializer::ParseNodeFromJson(const TSharedPtr<FJsonObject>& JsonObject
     JsonObject->TryGetStringField(TEXT("member_parent"), MemberParent);
     JsonObject->TryGetStringField(TEXT("member_name"), MemberName);
     JsonObject->TryGetStringField(TEXT("comment"), Comment);
-    if (!JsonObject->TryGetStringField(TEXT("note"), Note))
-    {
-        // Backward compatibility with older exports.
-        JsonObject->TryGetStringField(TEXT("desc"), Note);
-    }
 
     OutNode.MemberParent = MemberParent;
     OutNode.MemberName = MemberName;
     OutNode.Comment = Comment;
+    #pragma region ODS
+    FString Note;
+    JsonObject->TryGetStringField(TEXT("note"), Note);
     OutNode.Note = Note;
+    #pragma endregion
 
     // Convert type string to enum
     int64 TypeValue = StaticEnum<EN2CNodeType>()->GetValueByNameString(TypeString, EGetByNameFlags::None);

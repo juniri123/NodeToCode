@@ -174,7 +174,7 @@ enum class EN2CNodeType : uint8
  * @brief Defines a single node within a Blueprint graph for code generation
  */
 USTRUCT(BlueprintType)
-struct FN2CNodeDefinition
+    struct FN2CNodeDefinition
 {
     GENERATED_BODY()
 
@@ -221,8 +221,10 @@ struct FN2CNodeDefinition
     /** Comment that was added to the node */
     FString Comment;
 
+    #pragma region ODS
     /** Processor-generated short note for this node */
     FString Note;
+    #pragma endregion
 
     /** Node behavior flags */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Node to Code")
@@ -245,7 +247,9 @@ struct FN2CNodeDefinition
         , MemberParent(TEXT(""))
         , MemberName(TEXT(""))
         , Comment(TEXT(""))
+        #pragma region ODS
         , Note(TEXT(""))
+        #pragma endregion
         , bPure(false)
         , bLatent(false)
     {

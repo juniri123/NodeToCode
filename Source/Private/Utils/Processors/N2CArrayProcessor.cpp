@@ -25,7 +25,9 @@ void FN2CArrayProcessor::ExtractNodeProperties(UK2Node* Node, FN2CNodeDefinition
                 FString ArrayInfo = FString::Printf(TEXT("Make Array: %s, Element Type: %s"),
                     *OutNodeDef.Name,
                     *OutNodeDef.MemberName);
+                #pragma region ODS
                 OutNodeDef.Note = ArrayInfo;
+                #pragma endregion
                 FN2CLogger::Get().Log(ArrayInfo, EN2CLogSeverity::Debug);
                 break;
             }
@@ -65,7 +67,9 @@ void FN2CArrayProcessor::ExtractNodeProperties(UK2Node* Node, FN2CNodeDefinition
                     *OutNodeDef.Name,
                     *KeyType,
                     *ValueType);
+                #pragma region ODS
                 OutNodeDef.Note = MapInfo;
+                #pragma endregion
                 FN2CLogger::Get().Log(MapInfo, EN2CLogSeverity::Debug);
                 break;
             }
@@ -94,7 +98,9 @@ void FN2CArrayProcessor::ExtractNodeProperties(UK2Node* Node, FN2CNodeDefinition
                 FString SetInfo = FString::Printf(TEXT("Make Set: %s, Element Type: %s"),
                     *OutNodeDef.Name,
                     *OutNodeDef.MemberName);
+                #pragma region ODS
                 OutNodeDef.Note = SetInfo;
+                #pragma endregion
                 FN2CLogger::Get().Log(SetInfo, EN2CLogSeverity::Debug);
                 break;
             }
@@ -123,7 +129,9 @@ void FN2CArrayProcessor::ExtractNodeProperties(UK2Node* Node, FN2CNodeDefinition
                 FString ArrayInfo = FString::Printf(TEXT("Get Array Item: %s, Element Type: %s"),
                     *OutNodeDef.Name,
                     *OutNodeDef.MemberName);
+                #pragma region ODS
                 OutNodeDef.Note = ArrayInfo;
+                #pragma endregion
                 FN2CLogger::Get().Log(ArrayInfo, EN2CLogSeverity::Debug);
                 break;
             }
@@ -168,7 +176,9 @@ void FN2CArrayProcessor::ExtractNodeProperties(UK2Node* Node, FN2CNodeDefinition
                     *OutNodeDef.Name,
                     *ContainerType,
                     *OutNodeDef.MemberName);
+                #pragma region ODS
                 OutNodeDef.Note = ContainerInfo;
+                #pragma endregion
                 FN2CLogger::Get().Log(ContainerInfo, EN2CLogSeverity::Debug);
                 break;
             }

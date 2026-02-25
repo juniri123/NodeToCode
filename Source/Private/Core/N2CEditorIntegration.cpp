@@ -44,6 +44,7 @@ FN2CEditorIntegration& FN2CEditorIntegration::Get()
     return Instance;
 }
 
+#pragma region ODS
 namespace
 {
     // N2C 확장: 소스컨트롤 CL 식별자 추출
@@ -273,6 +274,7 @@ namespace
         return true;
     }
 }
+#pragma endregion
 
 void FN2CEditorIntegration::ExecuteCopyJsonForEditor(TWeakPtr<FBlueprintEditor> InEditor)
 {
@@ -369,70 +371,8 @@ void FN2CEditorIntegration::ExecuteCopyJsonForEditor(TWeakPtr<FBlueprintEditor> 
     }
 }
 
-// N2C 확장: Parsed/Flow 파일 즉시 저장
-void FN2CEditorIntegration::ExecuteSaveParsedFlowFilesForEditor(TWeakPtr<FBlueprintEditor> InEditor)
-{
-    TArray<UK2Node*> CollectedNodes;
-    FString SafeGraphName;
-    FString RootPath;
-    FString FlowDir;
-    if (!PrepareSaveContext(InEditor, CollectedNodes, SafeGraphName, RootPath, FlowDir))
-    {
-        return;
-    }
-
-    FString ParsedJson;
-    FString ParsedJsonError;
-    if (!FN2CParsedDumpBuilder::BuildParsedJsonFromNodes(CollectedNodes, ParsedJson, ParsedJsonError))
-    {
-        FN2CLogger::Get().LogError(FString::Printf(TEXT("Failed to build parsed JSON: %s"), *ParsedJsonError));
-        return;
-    }
-
-    FString FlowJson;
-    FString FlowJsonError;
-    if (!FN2CFlowBuilder::BuildFlowJsonFromNodes(CollectedNodes, FlowJson, FlowJsonError))
-    {
-        FN2CLogger::Get().LogError(FString::Printf(TEXT("Failed to build flow JSON: %s"), *FlowJsonError));
-        return;
-    }
-
-    FString FlowText;
-    FString FlowTextError;
-    if (!FN2CFlowBuilder::BuildFlowTextFromNodes(CollectedNodes, FlowText, FlowTextError))
-    {
-        FN2CLogger::Get().LogError(FString::Printf(TEXT("Failed to build flow text: %s"), *FlowTextError));
-        return;
-    }
-
-    const FString ParsedJsonPath = FPaths::Combine(FlowDir, FString::Printf(TEXT("%s_parsed.json"), *SafeGraphName));
-    const FString FlowJsonPath = FPaths::Combine(FlowDir, FString::Printf(TEXT("%s_flow.json"), *SafeGraphName));
-    const FString FlowTextPath = FPaths::Combine(FlowDir, FString::Printf(TEXT("%s_flow.txt"), *SafeGraphName));
-    if (!FFileHelper::SaveStringToFile(ParsedJson, *ParsedJsonPath))
-    {
-        FN2CLogger::Get().LogError(FString::Printf(TEXT("Failed to save parsed JSON: %s"), *ParsedJsonPath));
-        return;
-    }
-    if (!FFileHelper::SaveStringToFile(FlowJson, *FlowJsonPath))
-    {
-        FN2CLogger::Get().LogError(FString::Printf(TEXT("Failed to save flow JSON: %s"), *FlowJsonPath));
-        return;
-    }
-    if (!FFileHelper::SaveStringToFile(FlowText, *FlowTextPath))
-    {
-        FN2CLogger::Get().LogError(FString::Printf(TEXT("Failed to save flow text: %s"), *FlowTextPath));
-        return;
-    }
-
-    FNotificationInfo Info(NSLOCTEXT("NodeToCode", "ParsedFlowSaved", "Parsed/Flow files saved"));
-    Info.bFireAndForget = true;
-    Info.FadeInDuration = 0.2f;
-    Info.FadeOutDuration = 0.5f;
-    Info.ExpireDuration = 2.0f;
-    FSlateNotificationManager::Get().AddNotification(Info);
-}
-
-void FN2CEditorIntegration::ExecuteSaveBlueprintJsonForEditor(TWeakPtr<FBlueprintEditor> InEditor)
+#pragma region ODS
+void FN2CEditorIntegration::ExecuteSaveJson(TWeakPtr<FBlueprintEditor> InEditor)
 {
     TArray<UK2Node*> CollectedNodes;
     FString SafeGraphName;
@@ -480,112 +420,7 @@ void FN2CEditorIntegration::ExecuteSaveBlueprintJsonForEditor(TWeakPtr<FBlueprin
     FSlateNotificationManager::Get().AddNotification(Info);
 }
 
-// N2C 확장: Parsed Json 파일 즉시 저장
-void FN2CEditorIntegration::ExecuteSaveParsedJsonForEditor(TWeakPtr<FBlueprintEditor> InEditor)
-{
-    TArray<UK2Node*> CollectedNodes;
-    FString SafeGraphName;
-    FString RootPath;
-    FString FlowDir;
-    if (!PrepareSaveContext(InEditor, CollectedNodes, SafeGraphName, RootPath, FlowDir))
-    {
-        return;
-    }
-
-    FString ParsedJson;
-    FString ParsedJsonError;
-    if (!FN2CParsedDumpBuilder::BuildParsedJsonFromNodes(CollectedNodes, ParsedJson, ParsedJsonError))
-    {
-        FN2CLogger::Get().LogError(FString::Printf(TEXT("Failed to build parsed JSON: %s"), *ParsedJsonError));
-        return;
-    }
-
-    const FString ParsedJsonPath = FPaths::Combine(FlowDir, FString::Printf(TEXT("%s_parsed.json"), *SafeGraphName));
-    if (!FFileHelper::SaveStringToFile(ParsedJson, *ParsedJsonPath))
-    {
-        FN2CLogger::Get().LogError(FString::Printf(TEXT("Failed to save parsed JSON: %s"), *ParsedJsonPath));
-        return;
-    }
-
-    FNotificationInfo Info(NSLOCTEXT("NodeToCode", "ParsedSaved", "Parsed JSON file saved"));
-    Info.bFireAndForget = true;
-    Info.FadeInDuration = 0.2f;
-    Info.FadeOutDuration = 0.5f;
-    Info.ExpireDuration = 2.0f;
-    FSlateNotificationManager::Get().AddNotification(Info);
-}
-
-// N2C 확장: Flow Json 파일 즉시 저장
-void FN2CEditorIntegration::ExecuteSaveFlowJsonForEditor(TWeakPtr<FBlueprintEditor> InEditor)
-{
-    TArray<UK2Node*> CollectedNodes;
-    FString SafeGraphName;
-    FString RootPath;
-    FString FlowDir;
-    if (!PrepareSaveContext(InEditor, CollectedNodes, SafeGraphName, RootPath, FlowDir))
-    {
-        return;
-    }
-
-    FString FlowJson;
-    FString FlowJsonError;
-    if (!FN2CFlowBuilder::BuildFlowJsonFromNodes(CollectedNodes, FlowJson, FlowJsonError))
-    {
-        FN2CLogger::Get().LogError(FString::Printf(TEXT("Failed to build flow JSON: %s"), *FlowJsonError));
-        return;
-    }
-
-    const FString FlowJsonPath = FPaths::Combine(FlowDir, FString::Printf(TEXT("%s_flow.json"), *SafeGraphName));
-    if (!FFileHelper::SaveStringToFile(FlowJson, *FlowJsonPath))
-    {
-        FN2CLogger::Get().LogError(FString::Printf(TEXT("Failed to save flow JSON: %s"), *FlowJsonPath));
-        return;
-    }
-
-    FNotificationInfo Info(NSLOCTEXT("NodeToCode", "FlowJsonSaved", "Flow JSON file saved"));
-    Info.bFireAndForget = true;
-    Info.FadeInDuration = 0.2f;
-    Info.FadeOutDuration = 0.5f;
-    Info.ExpireDuration = 2.0f;
-    FSlateNotificationManager::Get().AddNotification(Info);
-}
-
-// N2C 확장: Flow Text 파일 즉시 저장
-void FN2CEditorIntegration::ExecuteSaveFlowTextForEditor(TWeakPtr<FBlueprintEditor> InEditor)
-{
-    TArray<UK2Node*> CollectedNodes;
-    FString SafeGraphName;
-    FString RootPath;
-    FString FlowDir;
-    if (!PrepareSaveContext(InEditor, CollectedNodes, SafeGraphName, RootPath, FlowDir))
-    {
-        return;
-    }
-
-    FString FlowText;
-    FString FlowTextError;
-    if (!FN2CFlowBuilder::BuildFlowTextFromNodes(CollectedNodes, FlowText, FlowTextError))
-    {
-        FN2CLogger::Get().LogError(FString::Printf(TEXT("Failed to build flow text: %s"), *FlowTextError));
-        return;
-    }
-
-    const FString FlowTextPath = FPaths::Combine(FlowDir, FString::Printf(TEXT("%s_flow.txt"), *SafeGraphName));
-    if (!FFileHelper::SaveStringToFile(FlowText, *FlowTextPath))
-    {
-        FN2CLogger::Get().LogError(FString::Printf(TEXT("Failed to save flow text: %s"), *FlowTextPath));
-        return;
-    }
-
-    FNotificationInfo Info(NSLOCTEXT("NodeToCode", "FlowTextSaved", "Flow text file saved"));
-    Info.bFireAndForget = true;
-    Info.FadeInDuration = 0.2f;
-    Info.FadeOutDuration = 0.5f;
-    Info.ExpireDuration = 2.0f;
-    FSlateNotificationManager::Get().AddNotification(Info);
-}
-
-void FN2CEditorIntegration::ExecuteOpenSaveFolderForEditor(TWeakPtr<FBlueprintEditor> InEditor)
+void FN2CEditorIntegration::ExecuteOpenSaveFolder(TWeakPtr<FBlueprintEditor> InEditor)
 {
     TArray<UK2Node*> CollectedNodes;
     FString SafeGraphName;
@@ -766,75 +601,171 @@ void FN2CEditorIntegration::ExecuteBp2CppUsingMCP(TWeakPtr<FBlueprintEditor> InE
     );
 }
 
-void FN2CEditorIntegration::OnMcpSessionComplete(bool bSuccess, const FString& SessionId, const FString& Error)
+void FN2CEditorIntegration::ExecuteSaveParsedFlowFiles(TWeakPtr<FBlueprintEditor> InEditor)
 {
-    if (!bSuccess)
+    TArray<UK2Node*> CollectedNodes;
+    FString SafeGraphName;
+    FString RootPath;
+    FString FlowDir;
+    if (!PrepareSaveContext(InEditor, CollectedNodes, SafeGraphName, RootPath, FlowDir))
     {
-        FN2CLogger::Get().LogWarning(FString::Printf(TEXT("MCP session creation failed: %s"), *Error));
         return;
     }
 
-    const FString BlueprintName = PendingMcpContext ? PendingMcpContext->BlueprintName : TEXT("Unknown");
-    FN2CLogger::Get().Log(
-        FString::Printf(TEXT("MCP session created for Blueprint %s: %s"), *BlueprintName, *SessionId),
-        EN2CLogSeverity::Info
-    );
+    FString ParsedJson;
+    FString ParsedJsonError;
+    if (!FN2CParsedDumpBuilder::BuildParsedJsonFromNodes(CollectedNodes, ParsedJson, ParsedJsonError))
+    {
+        FN2CLogger::Get().LogError(FString::Printf(TEXT("Failed to build parsed JSON: %s"), *ParsedJsonError));
+        return;
+    }
 
-    SendMcpRequestToLLM(SessionId);
+    FString FlowJson;
+    FString FlowJsonError;
+    if (!FN2CFlowBuilder::BuildFlowJsonFromNodes(CollectedNodes, FlowJson, FlowJsonError))
+    {
+        FN2CLogger::Get().LogError(FString::Printf(TEXT("Failed to build flow JSON: %s"), *FlowJsonError));
+        return;
+    }
+
+    FString FlowText;
+    FString FlowTextError;
+    if (!FN2CFlowBuilder::BuildFlowTextFromNodes(CollectedNodes, FlowText, FlowTextError))
+    {
+        FN2CLogger::Get().LogError(FString::Printf(TEXT("Failed to build flow text: %s"), *FlowTextError));
+        return;
+    }
+
+    const FString ParsedJsonPath = FPaths::Combine(FlowDir, FString::Printf(TEXT("%s_parsed.json"), *SafeGraphName));
+    const FString FlowJsonPath = FPaths::Combine(FlowDir, FString::Printf(TEXT("%s_flow.json"), *SafeGraphName));
+    const FString FlowTextPath = FPaths::Combine(FlowDir, FString::Printf(TEXT("%s_flow.txt"), *SafeGraphName));
+    if (!FFileHelper::SaveStringToFile(ParsedJson, *ParsedJsonPath))
+    {
+        FN2CLogger::Get().LogError(FString::Printf(TEXT("Failed to save parsed JSON: %s"), *ParsedJsonPath));
+        return;
+    }
+    if (!FFileHelper::SaveStringToFile(FlowJson, *FlowJsonPath))
+    {
+        FN2CLogger::Get().LogError(FString::Printf(TEXT("Failed to save flow JSON: %s"), *FlowJsonPath));
+        return;
+    }
+    if (!FFileHelper::SaveStringToFile(FlowText, *FlowTextPath))
+    {
+        FN2CLogger::Get().LogError(FString::Printf(TEXT("Failed to save flow text: %s"), *FlowTextPath));
+        return;
+    }
+
+    FNotificationInfo Info(NSLOCTEXT("NodeToCode", "ParsedFlowSaved", "Parsed/Flow files saved"));
+    Info.bFireAndForget = true;
+    Info.FadeInDuration = 0.2f;
+    Info.FadeOutDuration = 0.5f;
+    Info.ExpireDuration = 2.0f;
+    FSlateNotificationManager::Get().AddNotification(Info);
 }
 
-void FN2CEditorIntegration::SendMcpRequestToLLM(const FString& SessionId)
+void FN2CEditorIntegration::ExecuteSaveParsedJson(TWeakPtr<FBlueprintEditor> InEditor)
 {
-    UN2CLLMModule* LLMModule = UN2CLLMModule::Get();
-    if (!LLMModule)
+    TArray<UK2Node*> CollectedNodes;
+    FString SafeGraphName;
+    FString RootPath;
+    FString FlowDir;
+    if (!PrepareSaveContext(InEditor, CollectedNodes, SafeGraphName, RootPath, FlowDir))
     {
-        FN2CLogger::Get().LogError(TEXT("LLM Module not available for MCP request"));
         return;
     }
 
-    if (!LLMModule->Initialize())
+    FString ParsedJson;
+    FString ParsedJsonError;
+    if (!FN2CParsedDumpBuilder::BuildParsedJsonFromNodes(CollectedNodes, ParsedJson, ParsedJsonError))
     {
-        FN2CLogger::Get().LogError(TEXT("Failed to initialize LLM Module for MCP request"));
+        FN2CLogger::Get().LogError(FString::Printf(TEXT("Failed to build parsed JSON: %s"), *ParsedJsonError));
         return;
     }
 
-    const FString McpPayload = FString::Printf(TEXT("{\"session_id\":\"%s\"}"), *SessionId);
-    const FString PromptText = PendingMcpContext ? PendingMcpContext->PromptText : FString();
-
-    TScriptInterface<IN2CLLMService> ActiveService = LLMModule->GetActiveService();
-    if (!ActiveService.GetInterface())
+    const FString ParsedJsonPath = FPaths::Combine(FlowDir, FString::Printf(TEXT("%s_parsed.json"), *SafeGraphName));
+    if (!FFileHelper::SaveStringToFile(ParsedJson, *ParsedJsonPath))
     {
-        FN2CLogger::Get().LogError(TEXT("No active LLM service for MCP request"));
+        FN2CLogger::Get().LogError(FString::Printf(TEXT("Failed to save parsed JSON: %s"), *ParsedJsonPath));
         return;
     }
 
-    ActiveService->SendRequest(
-        McpPayload,
-        PromptText,
-        FOnLLMResponseReceived::CreateRaw(
-            this,
-            &FN2CEditorIntegration::OnMcpLlmResponse
-        )
-    );
+    FNotificationInfo Info(NSLOCTEXT("NodeToCode", "ParsedSaved", "Parsed JSON file saved"));
+    Info.bFireAndForget = true;
+    Info.FadeInDuration = 0.2f;
+    Info.FadeOutDuration = 0.5f;
+    Info.ExpireDuration = 2.0f;
+    FSlateNotificationManager::Get().AddNotification(Info);
 }
 
-void FN2CEditorIntegration::OnMcpLlmResponse(const FString& Response)
+void FN2CEditorIntegration::ExecuteSaveFlowJson(TWeakPtr<FBlueprintEditor> InEditor)
 {
-    // Placeholder parse flow for MCP responses
-    FN2CTranslationResponse TranslationResponse;
-    const bool bParsed = false;
-    if (bParsed)
+    TArray<UK2Node*> CollectedNodes;
+    FString SafeGraphName;
+    FString RootPath;
+    FString FlowDir;
+    if (!PrepareSaveContext(InEditor, CollectedNodes, SafeGraphName, RootPath, FlowDir))
     {
-        FN2CLogger::Get().Log(TEXT("Successfully parsed MCP LLM response"), EN2CLogSeverity::Info);
+        return;
     }
-    else
+
+    FString FlowJson;
+    FString FlowJsonError;
+    if (!FN2CFlowBuilder::BuildFlowJsonFromNodes(CollectedNodes, FlowJson, FlowJsonError))
     {
-        FN2CLogger::Get().LogWarning(TEXT("MCP response parser not implemented"));
+        FN2CLogger::Get().LogError(FString::Printf(TEXT("Failed to build flow JSON: %s"), *FlowJsonError));
+        return;
     }
+
+    const FString FlowJsonPath = FPaths::Combine(FlowDir, FString::Printf(TEXT("%s_flow.json"), *SafeGraphName));
+    if (!FFileHelper::SaveStringToFile(FlowJson, *FlowJsonPath))
+    {
+        FN2CLogger::Get().LogError(FString::Printf(TEXT("Failed to save flow JSON: %s"), *FlowJsonPath));
+        return;
+    }
+
+    FNotificationInfo Info(NSLOCTEXT("NodeToCode", "FlowJsonSaved", "Flow JSON file saved"));
+    Info.bFireAndForget = true;
+    Info.FadeInDuration = 0.2f;
+    Info.FadeOutDuration = 0.5f;
+    Info.ExpireDuration = 2.0f;
+    FSlateNotificationManager::Get().AddNotification(Info);
 }
 
-// N2C 확장: Flow 텍스트 클립보드 복사
-void FN2CEditorIntegration::ExecuteCopyFlowTextForEditor(TWeakPtr<FBlueprintEditor> InEditor)
+void FN2CEditorIntegration::ExecuteSaveFlowText(TWeakPtr<FBlueprintEditor> InEditor)
+{
+    TArray<UK2Node*> CollectedNodes;
+    FString SafeGraphName;
+    FString RootPath;
+    FString FlowDir;
+    if (!PrepareSaveContext(InEditor, CollectedNodes, SafeGraphName, RootPath, FlowDir))
+    {
+        return;
+    }
+
+    FString FlowText;
+    FString FlowTextError;
+    if (!FN2CFlowBuilder::BuildFlowTextFromNodes(CollectedNodes, FlowText, FlowTextError))
+    {
+        FN2CLogger::Get().LogError(FString::Printf(TEXT("Failed to build flow text: %s"), *FlowTextError));
+        return;
+    }
+
+    const FString FlowTextPath = FPaths::Combine(FlowDir, FString::Printf(TEXT("%s_flow.txt"), *SafeGraphName));
+    if (!FFileHelper::SaveStringToFile(FlowText, *FlowTextPath))
+    {
+        FN2CLogger::Get().LogError(FString::Printf(TEXT("Failed to save flow text: %s"), *FlowTextPath));
+        return;
+    }
+
+    FNotificationInfo Info(NSLOCTEXT("NodeToCode", "FlowTextSaved", "Flow text file saved"));
+    Info.bFireAndForget = true;
+    Info.FadeInDuration = 0.2f;
+    Info.FadeOutDuration = 0.5f;
+    Info.ExpireDuration = 2.0f;
+    FSlateNotificationManager::Get().AddNotification(Info);
+}
+
+void FN2CEditorIntegration::ExecuteCopyFlowText(TWeakPtr<FBlueprintEditor> InEditor)
 {
     // Flow 텍스트를 클립보드에 복사하는 툴바 액션
     // Get the editor pointer
@@ -884,8 +815,7 @@ void FN2CEditorIntegration::ExecuteCopyFlowTextForEditor(TWeakPtr<FBlueprintEdit
     }
 }
 
-// N2C 확장: Flow JSON 클립보드 복사
-void FN2CEditorIntegration::ExecuteCopyFlowJsonForEditor(TWeakPtr<FBlueprintEditor> InEditor)
+void FN2CEditorIntegration::ExecuteCopyFlowJson(TWeakPtr<FBlueprintEditor> InEditor)
 {
     // Flow JSON을 클립보드에 복사하는 툴바 액션
     // Get the editor pointer
@@ -935,8 +865,7 @@ void FN2CEditorIntegration::ExecuteCopyFlowJsonForEditor(TWeakPtr<FBlueprintEdit
     }
 }
 
-// N2C 확장: Parsed JSON 클립보드 복사
-void FN2CEditorIntegration::ExecuteCopyParsedJsonForEditor(TWeakPtr<FBlueprintEditor> InEditor)
+void FN2CEditorIntegration::ExecuteCopyParsedJson(TWeakPtr<FBlueprintEditor> InEditor)
 {
     // Parsed JSON을 클립보드에 복사하는 툴바 액션
     // Get the editor pointer
@@ -985,6 +914,77 @@ void FN2CEditorIntegration::ExecuteCopyParsedJsonForEditor(TWeakPtr<FBlueprintEd
         FSlateNotificationManager::Get().AddNotification(Info);
     }
 }
+
+// ExecuteBp2CppUsingMCP에서 MCP 세션이 생성된 후 호출되는 콜백 함수
+void FN2CEditorIntegration::OnMcpSessionComplete(bool bSuccess, const FString& SessionId, const FString& Error)
+{
+    if (!bSuccess)
+    {
+        FN2CLogger::Get().LogWarning(FString::Printf(TEXT("MCP session creation failed: %s"), *Error));
+        return;
+    }
+
+    const FString BlueprintName = PendingMcpContext ? PendingMcpContext->BlueprintName : TEXT("Unknown");
+    FN2CLogger::Get().Log(
+        FString::Printf(TEXT("MCP session created for Blueprint %s: %s"), *BlueprintName, *SessionId),
+        EN2CLogSeverity::Info
+    );
+
+    SendMcpRequestToLLM(SessionId);
+}
+
+// MCP 세션이 생성된 후 LLM에 요청을 보내는 함수
+void FN2CEditorIntegration::SendMcpRequestToLLM(const FString& SessionId)
+{
+    UN2CLLMModule* LLMModule = UN2CLLMModule::Get();
+    if (!LLMModule)
+    {
+        FN2CLogger::Get().LogError(TEXT("LLM Module not available for MCP request"));
+        return;
+    }
+
+    if (!LLMModule->Initialize())
+    {
+        FN2CLogger::Get().LogError(TEXT("Failed to initialize LLM Module for MCP request"));
+        return;
+    }
+
+    const FString McpPayload = FString::Printf(TEXT("{\"session_id\":\"%s\"}"), *SessionId);
+    const FString PromptText = PendingMcpContext ? PendingMcpContext->PromptText : FString();
+
+    TScriptInterface<IN2CLLMService> ActiveService = LLMModule->GetActiveService();
+    if (!ActiveService.GetInterface())
+    {
+        FN2CLogger::Get().LogError(TEXT("No active LLM service for MCP request"));
+        return;
+    }
+
+    ActiveService->SendRequest(
+        McpPayload,
+        PromptText,
+        FOnLLMResponseReceived::CreateRaw(
+            this,
+            &FN2CEditorIntegration::OnMcpLlmResponse
+        )
+    );
+}
+
+// LLM으로부터 MCP 관련 응답을 받는 콜백 함수
+void FN2CEditorIntegration::OnMcpLlmResponse(const FString& Response)
+{
+    // Placeholder parse flow for MCP responses
+    FN2CTranslationResponse TranslationResponse;
+    const bool bParsed = false;
+    if (bParsed)
+    {
+        FN2CLogger::Get().Log(TEXT("Successfully parsed MCP LLM response"), EN2CLogSeverity::Info);
+    }
+    else
+    {
+        FN2CLogger::Get().LogWarning(TEXT("MCP response parser not implemented"));
+    }
+}
+#pragma endregion
 
 void FN2CEditorIntegration::Initialize()
 {
@@ -1162,7 +1162,7 @@ void FN2CEditorIntegration::RegisterToolbarForEditor(TSharedPtr<FBlueprintEditor
         })
     );
     
-    // Map the Copy JSON command
+    #pragma region ODS
     CommandList->MapAction(
         FN2CToolbarCommand::Get().SaveBlueprintJsonCommand,
         FExecuteAction::CreateLambda([this, WeakEditor, BlueprintName]()
@@ -1171,7 +1171,7 @@ void FN2CEditorIntegration::RegisterToolbarForEditor(TSharedPtr<FBlueprintEditor
                 FString::Printf(TEXT("Save Blueprint JSON triggered for Blueprint: %s"), *BlueprintName),
                 EN2CLogSeverity::Info
             );
-            ExecuteSaveBlueprintJsonForEditor(WeakEditor);
+            ExecuteSaveJson(WeakEditor);
         }),
         FCanExecuteAction::CreateLambda([WeakEditor]()
         {
@@ -1183,7 +1183,9 @@ void FN2CEditorIntegration::RegisterToolbarForEditor(TSharedPtr<FBlueprintEditor
             return Editor->GetCurrentMode() == FBlueprintEditorApplicationModes::StandardBlueprintEditorMode;
         })
     );
+    #pragma endregion
 
+    // Map the Copy JSON command
     CommandList->MapAction(
         FN2CToolbarCommand::Get().CopyJsonCommand,
         FExecuteAction::CreateLambda([this, WeakEditor, BlueprintName]()
@@ -1205,6 +1207,7 @@ void FN2CEditorIntegration::RegisterToolbarForEditor(TSharedPtr<FBlueprintEditor
         })
     );
 
+    #pragma region ODS
     CommandList->MapAction(
         FN2CToolbarCommand::Get().SaveParsedFlowFilesCommand,
         FExecuteAction::CreateLambda([this, WeakEditor, BlueprintName]()
@@ -1213,7 +1216,7 @@ void FN2CEditorIntegration::RegisterToolbarForEditor(TSharedPtr<FBlueprintEditor
                 FString::Printf(TEXT("Save Parsed/Flow Files triggered for Blueprint: %s"), *BlueprintName),
                 EN2CLogSeverity::Info
             );
-            ExecuteSaveParsedFlowFilesForEditor(WeakEditor);
+            ExecuteSaveParsedFlowFiles(WeakEditor);
         }),
         FCanExecuteAction::CreateLambda([WeakEditor]()
         {
@@ -1234,7 +1237,7 @@ void FN2CEditorIntegration::RegisterToolbarForEditor(TSharedPtr<FBlueprintEditor
                 FString::Printf(TEXT("Save Parsed Json triggered for Blueprint: %s"), *BlueprintName),
                 EN2CLogSeverity::Info
             );
-            ExecuteSaveParsedJsonForEditor(WeakEditor);
+            ExecuteSaveParsedJson(WeakEditor);
         }),
         FCanExecuteAction::CreateLambda([WeakEditor]()
         {
@@ -1255,7 +1258,7 @@ void FN2CEditorIntegration::RegisterToolbarForEditor(TSharedPtr<FBlueprintEditor
                 FString::Printf(TEXT("Save Flow Json triggered for Blueprint: %s"), *BlueprintName),
                 EN2CLogSeverity::Info
             );
-            ExecuteSaveFlowJsonForEditor(WeakEditor);
+            ExecuteSaveFlowJson(WeakEditor);
         }),
         FCanExecuteAction::CreateLambda([WeakEditor]()
         {
@@ -1276,7 +1279,7 @@ void FN2CEditorIntegration::RegisterToolbarForEditor(TSharedPtr<FBlueprintEditor
                 FString::Printf(TEXT("Save Flow Text triggered for Blueprint: %s"), *BlueprintName),
                 EN2CLogSeverity::Info
             );
-            ExecuteSaveFlowTextForEditor(WeakEditor);
+            ExecuteSaveFlowText(WeakEditor);
         }),
         FCanExecuteAction::CreateLambda([WeakEditor]()
         {
@@ -1297,7 +1300,7 @@ void FN2CEditorIntegration::RegisterToolbarForEditor(TSharedPtr<FBlueprintEditor
                 FString::Printf(TEXT("Copy Flow Json triggered for Blueprint: %s"), *BlueprintName),
                 EN2CLogSeverity::Info
             );
-            ExecuteCopyFlowJsonForEditor(WeakEditor);
+            ExecuteCopyFlowJson(WeakEditor);
         }),
         FCanExecuteAction::CreateLambda([WeakEditor]()
         {
@@ -1318,7 +1321,7 @@ void FN2CEditorIntegration::RegisterToolbarForEditor(TSharedPtr<FBlueprintEditor
                 FString::Printf(TEXT("Copy Flow Text triggered for Blueprint: %s"), *BlueprintName),
                 EN2CLogSeverity::Info
             );
-            ExecuteCopyFlowTextForEditor(WeakEditor);
+            ExecuteCopyFlowText(WeakEditor);
         }),
         FCanExecuteAction::CreateLambda([WeakEditor]()
         {
@@ -1339,7 +1342,7 @@ void FN2CEditorIntegration::RegisterToolbarForEditor(TSharedPtr<FBlueprintEditor
                 FString::Printf(TEXT("Open Save Folder triggered for Blueprint: %s"), *BlueprintName),
                 EN2CLogSeverity::Info
             );
-            ExecuteOpenSaveFolderForEditor(WeakEditor);
+            ExecuteOpenSaveFolder(WeakEditor);
         }),
         FCanExecuteAction::CreateLambda([WeakEditor]()
         {
@@ -1381,7 +1384,7 @@ void FN2CEditorIntegration::RegisterToolbarForEditor(TSharedPtr<FBlueprintEditor
                 FString::Printf(TEXT("Copy Parsed Json triggered for Blueprint: %s"), *BlueprintName),
                 EN2CLogSeverity::Info
             );
-            ExecuteCopyParsedJsonForEditor(WeakEditor);
+            ExecuteCopyParsedJson(WeakEditor);
         }),
         FCanExecuteAction::CreateLambda([WeakEditor]()
         {
@@ -1393,7 +1396,8 @@ void FN2CEditorIntegration::RegisterToolbarForEditor(TSharedPtr<FBlueprintEditor
             return Editor->GetCurrentMode() == FBlueprintEditorApplicationModes::StandardBlueprintEditorMode;
         })
     );
-
+    #pragma endregion
+    
     // Store in our map
     EditorCommandLists.Add(WeakEditor, CommandList);
     FN2CLogger::Get().Log(
@@ -1420,8 +1424,9 @@ void FN2CEditorIntegration::RegisterToolbarForEditor(TSharedPtr<FBlueprintEditor
                     
                     MenuBuilder.AddMenuEntry(FN2CToolbarCommand::Get().OpenWindowCommand);
                     MenuBuilder.AddMenuEntry(FN2CToolbarCommand::Get().CollectNodesCommand);
-                    MenuBuilder.AddMenuEntry(FN2CToolbarCommand::Get().SaveBlueprintJsonCommand);
                     MenuBuilder.AddMenuEntry(FN2CToolbarCommand::Get().CopyJsonCommand);
+                    #pragma region ODS
+                    MenuBuilder.AddMenuEntry(FN2CToolbarCommand::Get().SaveBlueprintJsonCommand);
                     MenuBuilder.AddMenuSeparator();
                     MenuBuilder.AddMenuEntry(FN2CToolbarCommand::Get().SaveParsedFlowFilesCommand);
                     MenuBuilder.AddMenuEntry(FN2CToolbarCommand::Get().SaveParsedJsonCommand);
@@ -1435,6 +1440,7 @@ void FN2CEditorIntegration::RegisterToolbarForEditor(TSharedPtr<FBlueprintEditor
                     MenuBuilder.AddMenuEntry(FN2CToolbarCommand::Get().CopyParsedJsonCommand);
                     MenuBuilder.AddMenuEntry(FN2CToolbarCommand::Get().CopyFlowJsonCommand);
                     MenuBuilder.AddMenuEntry(FN2CToolbarCommand::Get().CopyFlowTextCommand);
+                    #pragma endregion
 
                     return MenuBuilder.MakeWidget();
                 }),

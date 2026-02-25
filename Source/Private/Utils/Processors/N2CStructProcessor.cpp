@@ -28,7 +28,9 @@ void FN2CStructProcessor::ExtractNodeProperties(UK2Node* Node, FN2CNodeDefinitio
             FString StructInfo = FString::Printf(TEXT("Make Struct: %s, Type: %s"),
                 *OutNodeDef.Name,
                 *OutNodeDef.MemberName);
+            #pragma region ODS
             OutNodeDef.Note = StructInfo;
+            #pragma endregion
             FN2CLogger::Get().Log(StructInfo, EN2CLogSeverity::Debug);
             return;
         }
@@ -58,7 +60,9 @@ void FN2CStructProcessor::ExtractNodeProperties(UK2Node* Node, FN2CNodeDefinitio
             FString StructInfo = FString::Printf(TEXT("Break Struct: %s, Type: %s"),
                 *OutNodeDef.Name,
                 *OutNodeDef.MemberName);
+            #pragma region ODS
             OutNodeDef.Note = StructInfo;
+            #pragma endregion
             FN2CLogger::Get().Log(StructInfo, EN2CLogSeverity::Debug);
             return;
         }
@@ -75,7 +79,9 @@ void FN2CStructProcessor::ExtractNodeProperties(UK2Node* Node, FN2CNodeDefinitio
             FString StructInfo = FString::Printf(TEXT("Struct Operation: %s, Type: %s"),
                 *OutNodeDef.Name,
                 *OutNodeDef.MemberParent);
+            #pragma region ODS
             OutNodeDef.Note = StructInfo;
+            #pragma endregion
             FN2CLogger::Get().Log(StructInfo, EN2CLogSeverity::Debug);
             return;
         }
@@ -105,7 +111,9 @@ void FN2CStructProcessor::ExtractNodeProperties(UK2Node* Node, FN2CNodeDefinitio
             FString StructInfo = FString::Printf(TEXT("Set Fields In Struct: %s, Type: %s"),
                 *OutNodeDef.Name,
                 *OutNodeDef.MemberName);
+            #pragma region ODS
             OutNodeDef.Note = StructInfo;
+            #pragma endregion
             FN2CLogger::Get().Log(StructInfo, EN2CLogSeverity::Debug);
             return;
         }

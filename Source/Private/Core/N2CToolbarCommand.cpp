@@ -10,9 +10,15 @@
 
 const FName FN2CToolbarCommand::CommandName_Open = TEXT("NodeToCode_OpenWindow");
 const FName FN2CToolbarCommand::CommandName_Collect = TEXT("NodeToCode_CollectNodes");
-const FName FN2CToolbarCommand::CommandName_SaveBlueprintJson = TEXT("NodeToCode_SaveBlueprintJson");
 const FName FN2CToolbarCommand::CommandName_CopyJson = TEXT("NodeToCode_CopyJson");
-// N2C 확장: Flow 관련 툴바 커맨드 추가
+const FText FN2CToolbarCommand::CommandLabel_Open = NSLOCTEXT("NodeToCode", "OpenWindow", "Open Node to Code");
+const FText FN2CToolbarCommand::CommandLabel_Collect = NSLOCTEXT("NodeToCode", "CollectNodes", "Collect and Translate Nodes");
+const FText FN2CToolbarCommand::CommandLabel_CopyJson = NSLOCTEXT("NodeToCode", "CopyJson", "Copy Blueprint JSON");
+const FText FN2CToolbarCommand::CommandTooltip_Open = NSLOCTEXT("NodeToCode", "OpenWindowTooltip", "Open the Node to Code window");
+const FText FN2CToolbarCommand::CommandTooltip_Collect = NSLOCTEXT("NodeToCode", "CollectNodesTooltip", "Collect nodes from current Blueprint graph and translate to code");
+const FText FN2CToolbarCommand::CommandTooltip_CopyJson = NSLOCTEXT("NodeToCode", "CopyJsonTooltip", "Copy the serialized Blueprint JSON to clipboard");
+#pragma region ODS
+const FName FN2CToolbarCommand::CommandName_SaveBlueprintJson = TEXT("NodeToCode_SaveBlueprintJson");
 const FName FN2CToolbarCommand::CommandName_SaveParsedFlowFiles = TEXT("NodeToCode_SaveParsedFlowFiles");
 const FName FN2CToolbarCommand::CommandName_SaveParsedJson = TEXT("NodeToCode_SaveParsedJson");
 const FName FN2CToolbarCommand::CommandName_SaveFlowJson = TEXT("NodeToCode_SaveFlowJson");
@@ -22,11 +28,8 @@ const FName FN2CToolbarCommand::CommandName_Bp2CppMcp = TEXT("NodeToCode_Bp2CppM
 const FName FN2CToolbarCommand::CommandName_CopyFlowJson = TEXT("NodeToCode_CopyFlowJson");
 const FName FN2CToolbarCommand::CommandName_CopyFlowText = TEXT("NodeToCode_CopyFlowText");
 const FName FN2CToolbarCommand::CommandName_CopyParsedJson = TEXT("NodeToCode_CopyParsedJson");
-const FText FN2CToolbarCommand::CommandLabel_Open = NSLOCTEXT("NodeToCode", "OpenWindow", "Open Node to Code");
-const FText FN2CToolbarCommand::CommandLabel_Collect = NSLOCTEXT("NodeToCode", "CollectNodes", "Collect and Translate Nodes");
 const FText FN2CToolbarCommand::CommandLabel_SaveBlueprintJson = NSLOCTEXT("NodeToCode", "SaveBlueprintJson", "Save Blueprint JSON");
-const FText FN2CToolbarCommand::CommandLabel_CopyJson = NSLOCTEXT("NodeToCode", "CopyJson", "Copy Blueprint JSON");
-// N2C 확장: Flow 관련 라벨 추가
+
 const FText FN2CToolbarCommand::CommandLabel_SaveParsedFlowFiles = NSLOCTEXT("NodeToCode", "SaveParsedFlowFiles", "Save Parsed/Flow Files");
 const FText FN2CToolbarCommand::CommandLabel_SaveParsedJson = NSLOCTEXT("NodeToCode", "SaveParsedJson", "Save Parsed Json");
 const FText FN2CToolbarCommand::CommandLabel_SaveFlowJson = NSLOCTEXT("NodeToCode", "SaveFlowJson", "Save Flow Json");
@@ -36,11 +39,8 @@ const FText FN2CToolbarCommand::CommandLabel_Bp2CppMcp = NSLOCTEXT("NodeToCode",
 const FText FN2CToolbarCommand::CommandLabel_CopyFlowJson = NSLOCTEXT("NodeToCode", "CopyFlowJson", "Copy Flow Json");
 const FText FN2CToolbarCommand::CommandLabel_CopyFlowText = NSLOCTEXT("NodeToCode", "CopyFlowText", "Copy Flow Text");
 const FText FN2CToolbarCommand::CommandLabel_CopyParsedJson = NSLOCTEXT("NodeToCode", "CopyParsedJson", "Copy Parsed Json");
-const FText FN2CToolbarCommand::CommandTooltip_Open = NSLOCTEXT("NodeToCode", "OpenWindowTooltip", "Open the Node to Code window");
-const FText FN2CToolbarCommand::CommandTooltip_Collect = NSLOCTEXT("NodeToCode", "CollectNodesTooltip", "Collect nodes from current Blueprint graph and translate to code");
+
 const FText FN2CToolbarCommand::CommandTooltip_SaveBlueprintJson = NSLOCTEXT("NodeToCode", "SaveBlueprintJsonTooltip", "Save the serialized Blueprint JSON to file");
-const FText FN2CToolbarCommand::CommandTooltip_CopyJson = NSLOCTEXT("NodeToCode", "CopyJsonTooltip", "Copy the serialized Blueprint JSON to clipboard");
-// N2C 확장: Flow 관련 툴팁 추가
 const FText FN2CToolbarCommand::CommandTooltip_SaveParsedFlowFiles = NSLOCTEXT("NodeToCode", "SaveParsedFlowFilesTooltip", "Save parsed.json, flow.json, and flow.txt for the current Blueprint graph");
 const FText FN2CToolbarCommand::CommandTooltip_SaveParsedJson = NSLOCTEXT("NodeToCode", "SaveParsedJsonTooltip", "Save parsed.json under the translation output directory");
 const FText FN2CToolbarCommand::CommandTooltip_SaveFlowJson = NSLOCTEXT("NodeToCode", "SaveFlowJsonTooltip", "Save flow.json under the translation output directory");
@@ -50,6 +50,7 @@ const FText FN2CToolbarCommand::CommandTooltip_Bp2CppMcp = NSLOCTEXT("NodeToCode
 const FText FN2CToolbarCommand::CommandTooltip_CopyFlowJson = NSLOCTEXT("NodeToCode", "CopyFlowJsonTooltip", "Copy flow.json text to clipboard");
 const FText FN2CToolbarCommand::CommandTooltip_CopyFlowText = NSLOCTEXT("NodeToCode", "CopyFlowTextTooltip", "Copy flow text to clipboard");
 const FText FN2CToolbarCommand::CommandTooltip_CopyParsedJson = NSLOCTEXT("NodeToCode", "CopyParsedJsonTooltip", "Copy parsed.json text to clipboard");
+#pragma endregion
 
 FN2CToolbarCommand::FN2CToolbarCommand()
     : TCommands<FN2CToolbarCommand>(
@@ -61,7 +62,6 @@ FN2CToolbarCommand::FN2CToolbarCommand()
 {
 }
 
-// N2C 확장: Flow 관련 커맨드 등록 포함
 void FN2CToolbarCommand::RegisterCommands()
 {
     FN2CLogger::Get().Log(TEXT("Registering N2C toolbar commands"), EN2CLogSeverity::Debug);
@@ -82,6 +82,7 @@ void FN2CToolbarCommand::RegisterCommands()
         FInputChord()
     );
 
+    #pragma region ODS
     UI_COMMAND(
         SaveBlueprintJsonCommand,
         "Save Blueprint JSON",
@@ -89,6 +90,7 @@ void FN2CToolbarCommand::RegisterCommands()
         EUserInterfaceActionType::Button,
         FInputChord()
     );
+    #pragma endregion
     
     UI_COMMAND(
         CopyJsonCommand,
@@ -98,6 +100,7 @@ void FN2CToolbarCommand::RegisterCommands()
         FInputChord()
     );
 
+    #pragma region ODS
     UI_COMMAND(
         SaveParsedFlowFilesCommand,
         "Save Parsed/Flow Files",
@@ -175,6 +178,7 @@ void FN2CToolbarCommand::RegisterCommands()
         EUserInterfaceActionType::Button,
         FInputChord()
     );
+    #pragma endregion
     
     FN2CLogger::Get().Log(TEXT("N2C toolbar commands registered"), EN2CLogSeverity::Debug);
 }

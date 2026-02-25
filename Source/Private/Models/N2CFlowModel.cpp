@@ -5,6 +5,7 @@
 #include "Serialization/JsonWriter.h"
 #include "Serialization/JsonSerializer.h"
 
+#pragma region ODS
 namespace N2CFlow
 {
     Pin::Pin(FString InPinName, FString InPinGuid, FString InNodeName, FString InNodeGuid)
@@ -532,3 +533,4 @@ namespace N2CFlow
         return true;
     }
 } // namespace N2CFlow
+#pragma endregion

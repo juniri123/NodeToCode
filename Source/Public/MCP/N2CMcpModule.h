@@ -6,6 +6,7 @@
 #include "Core/N2CSettings.h"
 #include "N2CMcpModule.generated.h"
 
+#pragma region ODS
 USTRUCT()
 struct FN2CMcpSessionRequest
 {
@@ -46,3 +47,4 @@ public:
     /** Create a new MCP session */
     void CreateSessionAsync(const FN2CMcpSessionRequest& Request, FN2CMcpSessionComplete OnComplete);
 };
+#pragma endregion

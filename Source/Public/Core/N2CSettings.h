@@ -364,12 +364,14 @@ struct FN2CCodeEditorThemes
 
 
 // Questions? Check out the Docs: github.com/protospatial/NodeToCode/wiki
+#pragma region ODS
 UENUM(BlueprintType)
 enum class EN2CMcpPayloadMode : uint8
 {
     RawContent UMETA(DisplayName = "Raw Content"),
     FilePaths UMETA(DisplayName = "File Paths")
 };
+#pragma endregion
 
 UCLASS(Config = NodeToCode, DefaultConfig, meta = (Category = "Node to Code", DisplayName = "Node to Code"))
 class NODETOCODE_API UN2CSettings : public UDeveloperSettings
@@ -635,6 +637,7 @@ public:
                ToolTip="If set, translations will be saved to this directory instead of the default location in Saved/NodeToCode/Translations"))
     FDirectoryPath CustomTranslationOutputDirectory;
 
+    #pragma region ODS
     /** MCP server base URL */
     UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Node to Code | BP2CPP (MCP)",
         meta = (DisplayName = "Server Base URL",
@@ -678,6 +681,7 @@ public:
     UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Node to Code | BP2CPP (MCP)",
         meta = (DisplayName = "Include Blueprint JSON"))
     bool bMcpIncludeBlueprintJson = false;
+    #pragma endregion
     
     /** Validate all reference source file paths */
     void ValidateReferenceSourcePaths();

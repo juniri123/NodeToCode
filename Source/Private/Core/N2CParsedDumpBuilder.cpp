@@ -16,6 +16,7 @@
 #include "Serialization/JsonSerializer.h"
 #include "Serialization/JsonWriter.h"
 
+#pragma region ODS
 namespace
 {
 // bool 값을 파이썬 덤프 스타일 문자열로 변환
@@ -270,3 +271,4 @@ bool FN2CParsedDumpBuilder::BuildParsedJsonFromNodes(const TArray<UK2Node*>& Nod
     FJsonSerializer::Serialize(Root.ToSharedRef(), Writer);
     return true;
 }
+#pragma endregion

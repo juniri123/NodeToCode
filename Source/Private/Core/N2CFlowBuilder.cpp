@@ -10,6 +10,7 @@
 #include "Serialization/JsonSerializer.h"
 #include "Serialization/JsonWriter.h"
 
+#pragma region ODS
 namespace
 {
     // 로직 depth만큼 indent prefix 생성
@@ -1109,3 +1110,4 @@ TArray<FString> FN2CFlowBuilder::FlowDataToTextLines(const FN2CFlowData& Data)
     Lines.Append(PrintCommonSteps(Data.CommonSteps));
     return Lines;
 }
+#pragma endregion
