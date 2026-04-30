@@ -186,7 +186,7 @@ namespace
         Lines.Append(PrintSteps(Step->Next));
         return Lines;
     }
-
+    
     // common_steps에 저장된 모든 step을 순회하며 출력
     TArray<FString> PrintCommonSteps(const TMap<FString, TSharedPtr<N2CFlow::Step>>& CommonSteps)
     {
@@ -355,12 +355,12 @@ namespace
         TArray<TSharedPtr<N2CFlow::Step>> Placeholders;
         bool bIsFallthrough = false;
     };
-
+        
     // placeholder들을 callstack 기준으로 그루핑 (Python build_placeholder_groups)
     TArray<FMergingGroup> BuildPlaceholderGroups(const TArray<TSharedPtr<N2CFlow::Step>>& AllPlaceholders,
                                                 const TMap<FString, TSharedPtr<N2CFlow::Step>>& StepsByKey)
     {
-        // parent-chain 수집: {step_key: "A/B/C/..."}
+        // parent-chain 수집: CallstackByKey = {step_key0: "A/B/C/...", step_key1: "A/B/D/..."}
         TMap<FString, FString> CallstackByKey;
         for (const TSharedPtr<N2CFlow::Step>& Placeholder : AllPlaceholders)
         {
