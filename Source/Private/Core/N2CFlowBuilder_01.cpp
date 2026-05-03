@@ -1,6 +1,7 @@
 ﻿#include "Core/N2CFlowBuilder_01.h"
 
 #include "Models/Python/N2CFlowModel.h"
+#include "Utils/N2CLogger.h"
 
 #pragma region ODS
 namespace
@@ -142,13 +143,12 @@ namespace
         return Lines;
     }
 
-    // 스택 기반 비재귀 버전
-    TArray<FString> PrintSteps_01(const TSharedPtr<N2CFlow::Step>& RootStep)
+    TArray<TSharedPtr<N2CFlow::Step>> CollectPrintOrder_01(const TSharedPtr<N2CFlow::Step>& RootStep)
     {
-        TArray<FString> Lines;
+        TArray<TSharedPtr<N2CFlow::Step>> OrderedSteps;
         if (!RootStep.IsValid())
         {
-            return Lines;
+            return OrderedSteps;
         }
 
         TArray<TSharedPtr<N2CFlow::Step>> Stack;
@@ -157,39 +157,111 @@ namespace
         while (Stack.Num() > 0)
         {
             TSharedPtr<N2CFlow::Step> Current = Stack.Pop();
+            OrderedSteps.Add(Current);
 
-            while (Current.IsValid())
+            // Next는 Branches가 모두 처리된 후 출력되어야 하므로 먼저 push한다.
+            if (Current->Next.IsValid())
             {
-                Lines.Append(PrintSingleStep_01(Current, true));
+                Stack.Add(Current->Next);
+            }
 
-                if (Current->Branches.Num() > 0)
+            // LIFO 스택이므로 Branches는 역순 push해야 branch[0]부터 출력된다.
+            for (int32 BranchIdx = Current->Branches.Num() - 1; BranchIdx >= 0; --BranchIdx)
+            {
+                if (Current->Branches[BranchIdx].IsValid())
                 {
-                    // Next가 있으면 스택에 넣어서 Branches 다 처리된 후에 실행
-                    if (Current->Next.IsValid())
-                    {
-                        Stack.Add(Current->Next);
-                    }
-
-                    // Branches를 역순으로 스택에 push
-                    for (int32 i = Current->Branches.Num() - 1; i >= 0; --i)
-                    {
-                        if (Current->Branches[i].IsValid())
-                        {
-                            Stack.Add(Current->Branches[i]);
-                        }
-                    }
-
-                    // while 루프 탈출 → 스택에서 다음 꺼냄
-                    Current = nullptr;
-                }
-                else
-                {
-                    // Branches 없으면 Next로 바로 이동
-                    Current = Current->Next;
+                    Stack.Add(Current->Branches[BranchIdx]);
                 }
             }
         }
 
+        return OrderedSteps;
+    }
+
+    struct FPrintFrame
+    {
+        TSharedPtr<N2CFlow::Step> Step;
+        int32 NextBranchIdx = 0;
+        bool bNextProcessed = false;
+
+        explicit FPrintFrame(const TSharedPtr<N2CFlow::Step>& InStep)
+            : Step(InStep)
+        {
+        }
+
+        TSharedPtr<N2CFlow::Step> NextBranch()
+        {
+            if (NextBranchIdx < Step->Branches.Num())
+            {
+                const TSharedPtr<N2CFlow::Step> Branch = Step->Branches[NextBranchIdx++];
+                if (!Branch.IsValid())
+                {
+                    FN2CLogger::Get().LogError(TEXT("Invalid branch in print traversal"));
+                }
+                return Branch;
+            }
+            return nullptr;
+        }
+
+        TSharedPtr<N2CFlow::Step> Next()
+        {
+            if (bNextProcessed)
+            {
+                return nullptr;
+            }
+
+            bNextProcessed = true;
+            return Step->Next;
+        }
+    };
+
+    TArray<TSharedPtr<N2CFlow::Step>> CollectPrintOrder_02(const TSharedPtr<N2CFlow::Step>& RootStep)
+    {
+        TArray<TSharedPtr<N2CFlow::Step>> OutOrderedSteps;
+        if (!RootStep.IsValid())
+        {
+            return OutOrderedSteps;
+        }
+
+        TArray<FPrintFrame> TraverseStack;
+        TraverseStack.Emplace(RootStep);
+		OutOrderedSteps.Add(RootStep);
+
+        while (TraverseStack.Num() > 0)
+        {
+            FPrintFrame& Frame = TraverseStack.Last();
+
+            const TSharedPtr<N2CFlow::Step> Branch = Frame.NextBranch();
+            if (Branch.IsValid())
+            {
+                TraverseStack.Emplace(Branch);
+                OutOrderedSteps.Add(Branch);
+                continue;
+            }
+
+            const TSharedPtr<N2CFlow::Step> Next = Frame.Next();
+            if (Next.IsValid())
+            {
+                TraverseStack.Emplace(Next);
+                OutOrderedSteps.Add(Next);
+                continue;
+            }
+
+            TraverseStack.Pop();
+        }
+
+        return OutOrderedSteps;
+    }
+
+    // 비재귀 버전
+    TArray<FString> PrintSteps_01(const TSharedPtr<N2CFlow::Step>& RootStep)
+    {
+        TArray<FString> Lines;
+        const TArray<TSharedPtr<N2CFlow::Step>> OrderedSteps = CollectPrintOrder_02(RootStep);
+        for (const TSharedPtr<N2CFlow::Step>& Current : OrderedSteps)
+        {
+            Lines.Append(PrintSingleStep_01(Current, true));
+        }
         return Lines;
     }
 
