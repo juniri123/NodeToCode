@@ -210,7 +210,9 @@ LCA를 찾고, 적절한 위치에 Merging Point를 끼워 넣는다.
 
 `fallthrough`는 switch-case 계열에서 어떤 case가 명시적으로 끊기지 않고 다음 case 흐름으로 이어지는 형태를 말한다.
 
-Blueprint의 switch 패턴에서도 여러 case가 같은 다음 흐름으로 빠질 수 있다. 이 코드는 그런 경우를 일반 branch merge와 약간 다르게 처리하기 위해 `IsSwitchFallthroughCase()`와 `CreateFallthroughMergePoint()`를 둔다.
+이 코드의 fallthrough 처리는 모든 Blueprint switch에 적용되는 일반 규칙이 아니다. 여러 case placeholder가 같은 callstack을 공유하는 특정 출력 패턴을 사람이 읽기 좋게 표시하기 위한 예외 휴리스틱이다.
+
+그래서 `IsSwitchFallthroughCase()`와 `CreateFallthroughMergePoint()`는 "switch 처리"라기보다 "switch 계열의 특정 fallthrough-like 패턴 처리"로 봐야 한다. 조건을 일부러 좁게 잡고 있으며, 일반 branch merge보다 신뢰도가 낮은 특수 처리다.
 
 ---
 
@@ -458,14 +460,16 @@ while Stack not empty:
 
 - `GetParentChain()`: placeholder에서 시작해 `FromPins[0].NodeName`을 따라 부모 체인을 만든다.
 - `FindLCA()`: 여러 placeholder parent chain을 root -> child 방향으로 뒤집은 뒤 마지막 공통 Step을 찾는다.
-- `IsSwitchFallthroughCase()`: switch 특수 케이스인지 판단한다.
+- `IsSwitchFallthroughCase()`: 모든 switch가 아니라 특정 fallthrough-like 출력 패턴인지 판단한다.
 
 일반 merge:
 
 - `FindLCA()` 결과를 merge point 후보로 쓴다.
 - 후보의 기존 `Next` 앞에 merge point를 끼워 넣는다.
 
-switch fallthrough:
+switch fallthrough-like 예외 처리:
+
+모든 switch에 적용되는 일반 정책이 아니다. 여러 case placeholder가 같은 callstack을 공유하고 default 경로가 섞이지 않는 좁은 패턴만 잡는다.
 
 - LCA 이름에 `switch`가 포함되어야 한다.
 - placeholder들의 callstack이 모두 같아야 한다.
@@ -504,7 +508,7 @@ after:
 
 ### CreateFallthroughMergePoint
 
-fallthrough merge point는 마지막 placeholder 뒤에 붙는다.
+특정 switch fallthrough-like 패턴용 merge point는 마지막 placeholder 뒤에 붙는다. 이 함수는 switch 전체에 대한 일반 merge 정책이 아니라, 위 조건을 만족한 예외 케이스에만 사용된다.
 
 ```text
 MergingPointCandidate -> MergePoint

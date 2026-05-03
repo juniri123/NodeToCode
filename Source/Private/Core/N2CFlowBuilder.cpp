@@ -284,12 +284,13 @@ namespace
         return Lca;
     }
 
-    // switch fallthrough 케이스 판정 (Python 로직 그대로)
+    // 모든 switch에 적용되는 일반 규칙이 아니라,
+    // 여러 case placeholder가 같은 callstack을 공유하는 특정 fallthrough-like 패턴만 잡는 예외 처리.
     bool IsSwitchFallthroughCase(const TSharedPtr<N2CFlow::Step>& Lca,
                                 const TArray<TSharedPtr<N2CFlow::Step>>& Placeholders,
                                 const TMap<FString, TSharedPtr<N2CFlow::Step>>& StepsByKey)
     {
-        // 조건:
+        // 좁게 잡는 조건:
         // 1) LCA 노드 이름에 switch 포함
         // 2) placeholder들의 parent-chain 문자열(callstack)이 모두 동일
         // 3) default branch placeholder가 포함되지 않음
@@ -463,9 +464,8 @@ namespace
             TSharedPtr<N2CFlow::Step> CommonStep = FindStepByKey(StepsByKey, Leader->Node->Name);
             TSharedPtr<N2CFlow::Step> Lca = FindLCA(Placeholders, StepsByKey);
 
-            // switch fallthrough 케이스면 마지막 placeholder가 merge 후보
+            // 특정 switch fallthrough-like 패턴이면 마지막 placeholder가 merge 후보
             FMergingGroup Group;
-            // 여기서 fallthrough 처리
             if (IsSwitchFallthroughCase(Lca, Placeholders, StepsByKey))
             {
                 Group.CommonStep = CommonStep;
@@ -556,8 +556,8 @@ namespace
         return MergePoint;
     }
 
-    // Create fallthrough merge point (switch-case special)
-    // fallthrough 머지 포인트 생성 (switch-case 특수 처리)
+    // Create merge point for a narrow switch fallthrough-like output pattern.
+    // switch 전체에 대한 일반 처리라기보다, 여러 case가 같은 출력 경로를 공유하는 특정 패턴용 예외 처리.
     TSharedPtr<N2CFlow::Step> CreateFallthroughMergePoint(
         TMap<FString, TSharedPtr<N2CFlow::Step>>& StepsByKey,
         const TSharedPtr<N2CFlow::Step>& MergingPointCandidate,
@@ -1005,8 +1005,8 @@ void FN2CFlowBuilder::ResolveMergingPoints(const TSharedPtr<N2CFlow::Step>& Entr
         // placeholder들 중에 서로 묶일 수 있을 만한 그루핑
         TArray<FMergingGroup> Groups = BuildPlaceholderGroups(Placeholders, StepsByKey);
 
-        // todo. 부모가 스위치이면 중단해야 할지 고려 필요
-        // (예외적으로 switch는 fallthrough 되어야 함)
+        // todo. 부모가 switch 계열일 때 일반 merge를 막아야 하는지 검토 필요.
+        // 단, 아래 fallthrough 처리는 모든 switch가 아니라 특정 출력 패턴에만 적용되는 예외다.
         // 그루핑 별로 머지 포인트 찾기/생성
         for (const FMergingGroup& Group : Groups)
         {
