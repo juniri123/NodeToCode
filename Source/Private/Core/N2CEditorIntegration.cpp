@@ -29,6 +29,7 @@
 #include "ISourceControlRevision.h"
 #include "ISourceControlState.h"
 #include "SourceControlOperations.h"
+#include "Core/N2CFlowBuilder_01.h"
 
 #if PLATFORM_WINDOWS
 #include "Windows/WindowsPlatformApplicationMisc.h"
@@ -733,6 +734,7 @@ void FN2CEditorIntegration::ExecuteSaveFlowJson(TWeakPtr<FBlueprintEditor> InEdi
 
 void FN2CEditorIntegration::ExecuteSaveFlowText(TWeakPtr<FBlueprintEditor> InEditor)
 {
+     // v1 (기존) + v2 (개선) 비교 모드
     TArray<UK2Node*> CollectedNodes;
     FString SafeGraphName;
     FString RootPath;
@@ -742,22 +744,50 @@ void FN2CEditorIntegration::ExecuteSaveFlowText(TWeakPtr<FBlueprintEditor> InEdi
         return;
     }
 
-    FString FlowText;
-    FString FlowTextError;
-    if (!FN2CFlowBuilder::BuildFlowTextFromNodes(CollectedNodes, FlowText, FlowTextError))
+    // v1: 기존 버전
+    FString FlowTextV1;
+    FString FlowTextErrorV1;
+    if (!FN2CFlowBuilder::BuildFlowTextFromNodes(CollectedNodes, FlowTextV1, FlowTextErrorV1))
     {
-        FN2CLogger::Get().LogError(FString::Printf(TEXT("Failed to build flow text: %s"), *FlowTextError));
+        FN2CLogger::Get().LogError(FString::Printf(TEXT("Failed to build flow text v1: %s"), *FlowTextErrorV1));
         return;
     }
 
-    const FString FlowTextPath = FPaths::Combine(FlowDir, FString::Printf(TEXT("%s_flow.txt"), *SafeGraphName));
-    if (!FFileHelper::SaveStringToFile(FlowText, *FlowTextPath))
+    // v2: 개선 버전 (스택 기반 비재귀)
+    FString FlowTextV2;
+    FString FlowTextErrorV2;
+    if (!FN2CFlowBuilder_01::BuildFlowTextFromNodes_01(CollectedNodes, FlowTextV2, FlowTextErrorV2))
     {
-        FN2CLogger::Get().LogError(FString::Printf(TEXT("Failed to save flow text: %s"), *FlowTextPath));
+        FN2CLogger::Get().LogError(FString::Printf(TEXT("Failed to build flow text v2: %s"), *FlowTextErrorV2));
         return;
     }
 
-    FNotificationInfo Info(NSLOCTEXT("NodeToCode", "FlowTextSaved", "Flow text file saved"));
+    // v1 저장
+    const FString FlowTextPathV1 = FPaths::Combine(FlowDir, FString::Printf(TEXT("%s_flow_v1.txt"), *SafeGraphName));
+    if (!FFileHelper::SaveStringToFile(FlowTextV1, *FlowTextPathV1))
+    {
+        FN2CLogger::Get().LogError(FString::Printf(TEXT("Failed to save flow text v1: %s"), *FlowTextPathV1));
+        return;
+    }
+
+    // v2 저장
+    const FString FlowTextPathV2 = FPaths::Combine(FlowDir, FString::Printf(TEXT("%s_flow_v2.txt"), *SafeGraphName));
+    if (!FFileHelper::SaveStringToFile(FlowTextV2, *FlowTextPathV2))
+    {
+        FN2CLogger::Get().LogError(FString::Printf(TEXT("Failed to save flow text v2: %s"), *FlowTextPathV2));
+        return;
+    }
+
+    // 결과 비교 로그
+    const bool bMatch = (FlowTextV1 == FlowTextV2);
+    FN2CLogger::Get().Log(
+        FString::Printf(TEXT("Flow text v1 vs v2 match: %s"), bMatch ? TEXT("YES") : TEXT("NO")),
+        EN2CLogSeverity::Info
+    );
+
+    FNotificationInfo Info(FText::Format(
+        NSLOCTEXT("NodeToCode", "FlowTextSavedV1V2", "Flow text v1/v2 saved (match: {0})"),
+        bMatch ? FText::FromString(TEXT("YES")) : FText::FromString(TEXT("NO"))));
     Info.bFireAndForget = true;
     Info.FadeInDuration = 0.2f;
     Info.FadeOutDuration = 0.5f;
