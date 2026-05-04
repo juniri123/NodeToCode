@@ -7,9 +7,9 @@
 namespace
 {
     // 로직 depth만큼 indent prefix 생성
-    static FString MakeIndentPrefix_01(int32 Depth, bool bWithIndent = true)
+    static FString MakeIndentPrefix_01(int32 Depth, bool bNoIndent)
     {
-        if (!bWithIndent)
+        if (bNoIndent)
         {
             return TEXT("");
         }
@@ -37,7 +37,7 @@ namespace
     // 단일 Step을 텍스트 라인으로 변환
     // Step 그래프의 연결 정보는 이미 만들어져 있다고 보고,
     // 여기서는 Step의 상태 플래그에 따라 "어떻게 보일지"만 결정한다.
-    TArray<FString> PrintSingleStep_01(const TSharedPtr<N2CFlow::Step>& Step, bool bWithIndent)
+    TArray<FString> PrintSingleStep_01(const TSharedPtr<N2CFlow::Step>& Step, bool bNoIndent)
     {
         TArray<FString> Lines;
 
@@ -48,7 +48,7 @@ namespace
         }
 
         // 순회 단계에서 계산된 LogicDepth를 사용해 분기 깊이를 시각화한다.
-        const FString IndentPrefix = MakeIndentPrefix_01(Step->LogicDepth, bWithIndent);
+        const FString IndentPrefix = MakeIndentPrefix_01(Step->LogicDepth, bNoIndent);
 
         // 이 Step으로 들어온 exec 핀들을 한 줄 라벨로 만든다.
         // 분기에서 들어온 Step이면 branch entry처럼 보이도록 화살표 아이콘을 붙인다.
@@ -85,7 +85,7 @@ namespace
             if (Step->bIsBranched)
             {
                 Lines.Add(IndentPrefix + BranchLabel);
-                const FString CommonIndent = MakeIndentPrefix_01(Step->LogicDepth + 1);
+                const FString CommonIndent = MakeIndentPrefix_01(Step->LogicDepth + 1, false);
                 Lines.Add(FString::Printf(TEXT("%s%s↪️ Placeholder::%s for 📋%s::%s"),
                                         *CommonIndent,
                                         *CommentOut,
@@ -165,7 +165,7 @@ namespace
         if (Step->bIsBranched)
         {
             Lines.Add(IndentPrefix + BranchLabel);
-            const FString BranchedIndent = MakeIndentPrefix_01(Step->LogicDepth + 1);
+            const FString BranchedIndent = MakeIndentPrefix_01(Step->LogicDepth + 1, false);
             Lines.Add(FString::Printf(TEXT("%s%s📋%s::%s"),
                                     *BranchedIndent,
                                     *CommentOut,
@@ -302,7 +302,7 @@ namespace
         const TArray<TSharedPtr<N2CFlow::Step>> OrderedSteps = CollectPrintOrder_02(RootStep);
         for (const TSharedPtr<N2CFlow::Step>& Current : OrderedSteps)
         {
-            Lines.Append(PrintSingleStep_01(Current, true));
+            Lines.Append(PrintSingleStep_01(Current, false));
         }
         return Lines;
     }
