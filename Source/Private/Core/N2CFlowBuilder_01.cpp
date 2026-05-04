@@ -7,12 +7,12 @@
 namespace
 {
     // 로직 depth만큼 indent prefix 생성
-    static FString MakeIndentPrefix_01(int32 Depth, bool bWithIndent)
+    static FString MakeIndentPrefix_01(int32 Depth, bool bWithIndent = true)
     {
-		if (bWithIndent)
-		{
-			return TEXT("");
-		}
+        if (!bWithIndent)
+        {
+            return TEXT("");
+        }
 
         FString Result;
         for (int32 i = 0; i < Depth; ++i)
