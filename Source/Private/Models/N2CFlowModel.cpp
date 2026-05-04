@@ -8,12 +8,14 @@
 #pragma region ODS
 namespace N2CFlow
 {
-    Pin::Pin(FString InPinName, FString InPinGuid, FString InNodeName, FString InNodeGuid)
+    Pin::Pin(FString InPinName, FString InPinGuid, FString InNodeName, FString InNodeGuid, bool bInIsExec, bool bInIsOutput)
     {
         Name = MoveTemp(InPinName);
         Guid = MoveTemp(InPinGuid);
         NodeName = MoveTemp(InNodeName);
         NodeGuid = MoveTemp(InNodeGuid);
+        bIsExec = bInIsExec;
+        bIsOutput = bInIsOutput;
     }
 
     Link::Link(Pin InFrom, Pin InTo)
@@ -143,6 +145,8 @@ namespace N2CFlow
         JsonObject->SetStringField(TEXT("guid"), Guid);
         JsonObject->SetStringField(TEXT("node_name"), NodeName);
         JsonObject->SetStringField(TEXT("node_guid"), NodeGuid);
+        JsonObject->SetBoolField(TEXT("is_exec"), bIsExec);
+        JsonObject->SetBoolField(TEXT("is_output"), bIsOutput);
         return JsonObject;
     }
 
@@ -160,6 +164,11 @@ namespace N2CFlow
         {
             return false;
         }
+
+        OutPin.bIsExec = false;
+        OutPin.bIsOutput = false;
+        JsonObject->TryGetBoolField(TEXT("is_exec"), OutPin.bIsExec);
+        JsonObject->TryGetBoolField(TEXT("is_output"), OutPin.bIsOutput);
 
         return true;
     }

@@ -22,6 +22,18 @@ namespace
         return Result;
     }
 
+    // Flow 출력용 핀 이름
+    // exec 핀인데 표시 이름이 비어 있으면 빈 라벨 대신 exec로 보여준다.
+    FString FlowPinDisplayName_01(const N2CFlow::Pin& Pin)
+    {
+        if (!Pin.Name.IsEmpty())
+        {
+            return Pin.Name;
+        }
+
+        return Pin.bIsExec ? TEXT("exec") : TEXT("");
+    }
+
     // 단일 Step을 텍스트 라인으로 변환
     // Step 그래프의 연결 정보는 이미 만들어져 있다고 보고,
     // 여기서는 Step의 상태 플래그에 따라 "어떻게 보일지"만 결정한다.
@@ -36,7 +48,7 @@ namespace
         }
 
         // 순회 단계에서 계산된 LogicDepth를 사용해 분기 깊이를 시각화한다.
-        const FString IndentPrefix = bWithIndent ? MakeIndentPrefix_01(Step->LogicDepth, bWithIndent);
+        const FString IndentPrefix = MakeIndentPrefix_01(Step->LogicDepth, bWithIndent);
 
         // 이 Step으로 들어온 exec 핀들을 한 줄 라벨로 만든다.
         // 분기에서 들어온 Step이면 branch entry처럼 보이도록 화살표 아이콘을 붙인다.
@@ -47,9 +59,10 @@ namespace
             TArray<FString> Parts;
             for (const N2CFlow::Pin& Pin : Step->FromPins)
             {
+                const FString PinName = FlowPinDisplayName_01(Pin);
                 Parts.Add(FString::Printf(TEXT("%s📌%s::%s from (📋%s::%s)"),
                                         *BranchIcon,
-                                        *Pin.Name,
+                                        *PinName,
                                         *Pin.Guid,
                                         *Pin.NodeName,
                                         *Pin.NodeGuid));
@@ -103,9 +116,10 @@ namespace
             Lines.Add(IndentPrefix + TEXT("----- From Pins -----"));
             for (const N2CFlow::Pin& Pin : Step->FromPins)
             {
+                const FString PinName = FlowPinDisplayName_01(Pin);
                 Lines.Add(FString::Printf(TEXT("%s📌%s::%s from (📋%s::%s)"),
                                         *IndentPrefix,
-                                        *Pin.Name,
+                                        *PinName,
                                         *Pin.Guid,
                                         *Pin.NodeName,
                                         *Pin.NodeGuid));

@@ -36,6 +36,18 @@ namespace
         return Pin ? Pin->GetDisplayName().ToString() : FString();
     }
 
+    // Flow 출력용 핀 이름
+    // exec 핀인데 표시 이름이 비어 있으면 빈 라벨 대신 exec로 보여준다.
+    FString FlowPinDisplayName(const N2CFlow::Pin& Pin)
+    {
+        if (!Pin.Name.IsEmpty())
+        {
+            return Pin.Name;
+        }
+
+        return Pin.bIsExec ? TEXT("exec") : TEXT("");
+    }
+
     // Step 키로 찾기
     TSharedPtr<N2CFlow::Step> FindStepByKey(const TMap<FString, TSharedPtr<N2CFlow::Step>>& StepsByKey, const FString& Key)
     {
@@ -61,9 +73,10 @@ namespace
             TArray<FString> Parts;
             for (const N2CFlow::Pin& Pin : Step->FromPins)
             {
+                const FString PinName = FlowPinDisplayName(Pin);
                 Parts.Add(FString::Printf(TEXT("%s📌%s::%s from (📋%s::%s)"),
                                         *PrefixIcon,
-                                        *Pin.Name,
+                                        *PinName,
                                         *Pin.Guid,
                                         *Pin.NodeName,
                                         *Pin.NodeGuid));
@@ -106,9 +119,10 @@ namespace
             Lines.Add(IndentPrefix + TEXT("----- From Pins -----"));
             for (const N2CFlow::Pin& Pin : Step->FromPins)
             {
+                const FString PinName = FlowPinDisplayName(Pin);
                 Lines.Add(FString::Printf(TEXT("%s📌%s::%s from (📋%s::%s)"),
                                         *IndentPrefix,
-                                        *Pin.Name,
+                                        *PinName,
                                         *Pin.Guid,
                                         *Pin.NodeName,
                                         *Pin.NodeGuid));
@@ -521,7 +535,7 @@ namespace
         MergePoint->Key = FString::Printf(TEXT("%s_Merging_[%s]"), *CommonStep->Key, *GroupedIdxes);
         MergePoint->Node = CommonStep->Node;
         MergePoint->bIsMergingPoint = true;
-        MergePoint->FromPins.Add(N2CFlow::Pin(TEXT(""), TEXT(""), MergingPointCandidate->Key, TEXT("")));
+        MergePoint->FromPins.Add(N2CFlow::Pin(TEXT(""), TEXT(""), MergingPointCandidate->Key, TEXT(""), true, true));
 
         // logic depth: old_next 있을 때만 복사
         MergePoint->LogicDepth = OldNext.IsValid() ? OldNext->LogicDepth : MergingPointCandidate->LogicDepth;
@@ -590,7 +604,7 @@ namespace
         MergePoint->Key = FString::Printf(TEXT("%s_Merging_[%s]"), *CommonStep->Key, *GroupedIdxes);
         MergePoint->Node = CommonStep->Node;
         MergePoint->bIsMergingPoint = true;
-        MergePoint->FromPins.Add(N2CFlow::Pin(TEXT(""), TEXT(""), MergingPointCandidate->Key, TEXT("")));
+        MergePoint->FromPins.Add(N2CFlow::Pin(TEXT(""), TEXT(""), MergingPointCandidate->Key, TEXT(""), true, true));
 
         // logic depth
         MergePoint->LogicDepth = MergingPointCandidate->LogicDepth + 1;
@@ -779,14 +793,15 @@ bool FN2CFlowBuilder::BuildNodesFromK2Nodes(const TArray<UK2Node*>& Nodes, TMap<
             const FString PinName = PinDisplayName(Pin);
             const FString PinGuid = GuidToString(Pin->PinId);
             const bool bIsExec = (Pin->PinType.PinCategory == TEXT("exec"));
+            const bool bIsOutput = (Pin->Direction == EGPD_Output);
 
             // 로컬 핀 복구
-            N2CFlow::Pin LocalPin(PinName, PinGuid, NodeName, NodeGuid);
+            N2CFlow::Pin LocalPin(PinName, PinGuid, NodeName, NodeGuid, bIsExec, bIsOutput);
 
             // 로컬 핀 정보 캐시(링크 여부 상관 없음)
             if (bIsExec)
             {
-                if (Pin->Direction == EGPD_Output)
+                if (bIsOutput)
                 {
                     FlowNode->ExecOutPins.Add(LocalPin);
                 }
@@ -820,14 +835,16 @@ bool FN2CFlowBuilder::BuildNodesFromK2Nodes(const TArray<UK2Node*>& Nodes, TMap<
                 FString LinkedNodeGuid = GuidToString(LinkedNode->NodeGuid);
                 FString LinkedPinName = PinDisplayName(LinkedPin);
                 FString LinkedPinGuid = GuidToString(LinkedPin->PinId);
+                const bool bLinkedIsExec = (LinkedPin->PinType.PinCategory == TEXT("exec"));
+                const bool bLinkedIsOutput = (LinkedPin->Direction == EGPD_Output);
 
                 // 리모트 핀 정보 복구
-                N2CFlow::Pin RemotePin(LinkedPinName, LinkedPinGuid, LinkedNodeName, LinkedNodeGuid);
+                N2CFlow::Pin RemotePin(LinkedPinName, LinkedPinGuid, LinkedNodeName, LinkedNodeGuid, bLinkedIsExec, bLinkedIsOutput);
 
                 // 방향에 따라 Link 생성
                 if (bIsExec)
                 {
-                    if (Pin->Direction == EGPD_Output)
+                    if (bIsOutput)
                     {
                         FlowNode->ExecOutLinks.Add(N2CFlow::Link(LocalPin, RemotePin));
                     }
@@ -838,7 +855,7 @@ bool FN2CFlowBuilder::BuildNodesFromK2Nodes(const TArray<UK2Node*>& Nodes, TMap<
                 }
                 else
                 {
-                    if (Pin->Direction == EGPD_Output)
+                    if (bIsOutput)
                     {
                         FlowNode->DataOutLinks.Add(N2CFlow::Link(LocalPin, RemotePin));
                     }

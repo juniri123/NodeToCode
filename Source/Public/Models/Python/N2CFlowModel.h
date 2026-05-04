@@ -17,9 +17,13 @@ namespace N2CFlow
         FString NodeName;
         // 이 핀을 가진 노드 GUID
         FString NodeGuid;
+        // 실행 핀 여부
+        bool bIsExec = false;
+        // 출력 방향 핀 여부
+        bool bIsOutput = false;
 
         Pin() = default;
-        Pin(FString InPinName, FString InPinGuid, FString InNodeName, FString InNodeGuid);
+        Pin(FString InPinName, FString InPinGuid, FString InNodeName, FString InNodeGuid, bool bInIsExec = false, bool bInIsOutput = false);
 
         TSharedPtr<FJsonObject> ToJsonObject() const;
         static bool FromJsonObject(const TSharedPtr<FJsonObject>& JsonObject, Pin& OutPin);
