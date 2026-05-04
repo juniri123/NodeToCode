@@ -7,8 +7,13 @@
 namespace
 {
     // 로직 depth만큼 indent prefix 생성
-    static FString MakeIndentPrefix_01(int32 Depth)
+    static FString MakeIndentPrefix_01(int32 Depth, bool bWithIndent)
     {
+		if (bWithIndent)
+		{
+			return TEXT("");
+		}
+
         FString Result;
         for (int32 i = 0; i < Depth; ++i)
         {
@@ -18,25 +23,32 @@ namespace
     }
 
     // 단일 Step을 텍스트 라인으로 변환
+    // Step 그래프의 연결 정보는 이미 만들어져 있다고 보고,
+    // 여기서는 Step의 상태 플래그에 따라 "어떻게 보일지"만 결정한다.
     TArray<FString> PrintSingleStep_01(const TSharedPtr<N2CFlow::Step>& Step, bool bWithIndent)
     {
         TArray<FString> Lines;
+
+        // 출력할 실제 노드가 없으면 이 Step은 텍스트로 표현할 수 없다.
         if (!Step.IsValid() || !Step->Node.IsValid())
         {
             return Lines;
         }
 
-        const FString IndentPrefix = bWithIndent ? MakeIndentPrefix_01(Step->LogicDepth) : TEXT("");
+        // 순회 단계에서 계산된 LogicDepth를 사용해 분기 깊이를 시각화한다.
+        const FString IndentPrefix = bWithIndent ? MakeIndentPrefix_01(Step->LogicDepth, bWithIndent);
 
+        // 이 Step으로 들어온 exec 핀들을 한 줄 라벨로 만든다.
+        // 분기에서 들어온 Step이면 branch entry처럼 보이도록 화살표 아이콘을 붙인다.
         FString BranchLabel;
         if (Step->FromPins.Num() > 0)
         {
-            const FString PrefixIcon = Step->bIsBranched ? TEXT("➡️ ") : TEXT("");
+            const FString BranchIcon = Step->bIsBranched ? TEXT("➡️ ") : TEXT("");
             TArray<FString> Parts;
             for (const N2CFlow::Pin& Pin : Step->FromPins)
             {
                 Parts.Add(FString::Printf(TEXT("%s📌%s::%s from (📋%s::%s)"),
-                                        *PrefixIcon,
+                                        *BranchIcon,
                                         *Pin.Name,
                                         *Pin.Guid,
                                         *Pin.NodeName,
@@ -45,11 +57,18 @@ namespace
             BranchLabel = FString::Join(Parts, TEXT(", "));
         }
 
+        // 머지로 인해 실제 공통 노드를 다른 섹션에서 출력하는 경우,
+        // 현재 위치의 placeholder는 주석 처리된 흐름처럼 표시한다.
         const FString CommentOut = Step->bIsCommentOut ? TEXT("//") : TEXT("");
 
         // Common Logic Placeholder 처리
+        // 여러 흐름이 같은 노드로 합쳐질 때, 본문 흐름에는 실제 노드 대신 placeholder를 둔다.
+        // 실제 공통 노드와 그 이후 흐름은 Common Steps 섹션에서 별도로 출력된다.
         if (Step->bIsCommonPlaceholder)
         {
+            // 분기 엔트리 자체가 placeholder인 경우:
+            // 1) 현재 depth에 어떤 branch 핀에서 왔는지 출력
+            // 2) 한 depth 안쪽에 placeholder 대상 노드를 출력
             if (Step->bIsBranched)
             {
                 Lines.Add(IndentPrefix + BranchLabel);
@@ -63,6 +82,7 @@ namespace
             }
             else
             {
+                // 일반 흐름 중간에서 공통 노드로 합쳐지는 경우는 한 줄로 표현한다.
                 Lines.Add(FString::Printf(TEXT("%s%s%s → ↪️ Placeholder::%s for 📋%s::%s"),
                                         *IndentPrefix,
                                         *CommentOut,
@@ -75,6 +95,9 @@ namespace
         }
 
         // common step 출력
+        // 실제로 여러 exec 입력을 받는 공통 노드다.
+        // 어떤 핀들이 합쳐졌는지, 본문에서 어떤 placeholder로 대체됐는지 먼저 보여주고,
+        // 마지막에 실제 노드를 출력한다.
         if (Step->IsCommonStep())
         {
             Lines.Add(IndentPrefix + TEXT("----- From Pins -----"));
@@ -101,6 +124,8 @@ namespace
         }
 
         // merging point 출력
+        // 본문 흐름에서 placeholder들이 합쳐지는 지점을 표시한다.
+        // 여기서는 실제 노드를 출력하지 않고, 어떤 placeholder들이 merge됐는지만 보여준다.
         if (Step->bIsMergingPoint)
         {
             Lines.Add(IndentPrefix + TEXT("Merging Point ") + Step->Key);
@@ -121,6 +146,8 @@ namespace
         }
 
         // branched step 출력
+        // 분기 핀에서 시작하는 실제 노드다.
+        // branch 라벨은 현재 depth에 두고, 노드 본문은 한 depth 안쪽에 둔다.
         if (Step->bIsBranched)
         {
             Lines.Add(IndentPrefix + BranchLabel);
@@ -134,6 +161,7 @@ namespace
         }
 
         // 일반적인 경우
+        // 직렬 실행 흐름은 "입력 핀 라벨 -> 노드"를 한 줄로 출력한다.
         Lines.Add(FString::Printf(TEXT("%s%s%s → 📋%s::%s"),
                                 *CommentOut,
                                 *IndentPrefix,
