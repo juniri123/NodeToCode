@@ -865,36 +865,26 @@ void FN2CEditorIntegration::ExecuteCopyFlowText(TWeakPtr<FBlueprintEditor> InEdi
 void FN2CEditorIntegration::ExecuteCopyFlowJson(TWeakPtr<FBlueprintEditor> InEditor)
 {
     // Flow JSON을 클립보드에 복사하는 툴바 액션
-    // Get the editor pointer
-    TSharedPtr<FBlueprintEditor> Editor = InEditor.Pin();
-    if (!Editor.IsValid())
-    {
-        FN2CLogger::Get().LogError(TEXT("Invalid Blueprint Editor pointer"));
-        return;
-    }
-
-    // Get focused graph
-    UEdGraph* FocusedGraph = Editor->GetFocusedGraph();
-    if (!FocusedGraph)
-    {
-        FN2CLogger::Get().LogError(TEXT("No focused graph in Blueprint Editor"));
-        return;
-    }
-
-    // Collect nodes
-    FN2CNodeCollector& Collector = FN2CNodeCollector::Get();
     TArray<UK2Node*> CollectedNodes;
-    if (!Collector.CollectNodesFromGraph(FocusedGraph, CollectedNodes))
+    FString SafeGraphName;
+    FString RootPath;
+    FString FlowDir;
+    if (!PrepareSaveContext(InEditor, CollectedNodes, SafeGraphName, RootPath, FlowDir))
     {
-        FN2CLogger::Get().LogError(TEXT("Failed to collect nodes for flow JSON"));
         return;
     }
+
+    const FString FlowJsonPath = FPaths::Combine(FlowDir, FString::Printf(TEXT("%s_flow.json"), *SafeGraphName));
 
     FString FlowJson;
-    FString FlowJsonError;
-    if (!FN2CFlowBuilder::BuildFlowJsonFromNodes(CollectedNodes, FlowJson, FlowJsonError))
+    if (!FPaths::FileExists(FlowJsonPath))
     {
-        FN2CLogger::Get().LogError(FString::Printf(TEXT("Failed to build flow JSON: %s"), *FlowJsonError));
+        FN2CLogger::Get().LogError(FString::Printf(TEXT("Flow JSON file not found: %s"), *FlowJsonPath));
+        return;
+    }
+    if (!FFileHelper::LoadFileToString(FlowJson, *FlowJsonPath))
+    {
+        FN2CLogger::Get().LogError(FString::Printf(TEXT("Failed to read flow JSON file: %s"), *FlowJsonPath));
         return;
     }
 
@@ -902,7 +892,6 @@ void FN2CEditorIntegration::ExecuteCopyFlowJson(TWeakPtr<FBlueprintEditor> InEdi
     {
         FPlatformApplicationMisc::ClipboardCopy(*FlowJson);
 
-        // Show notification
         FNotificationInfo Info(NSLOCTEXT("NodeToCode", "FlowJsonCopied", "Flow JSON copied to clipboard"));
         Info.bFireAndForget = true;
         Info.FadeInDuration = 0.2f;
@@ -915,36 +904,26 @@ void FN2CEditorIntegration::ExecuteCopyFlowJson(TWeakPtr<FBlueprintEditor> InEdi
 void FN2CEditorIntegration::ExecuteCopyParsedJson(TWeakPtr<FBlueprintEditor> InEditor)
 {
     // Parsed JSON을 클립보드에 복사하는 툴바 액션
-    // Get the editor pointer
-    TSharedPtr<FBlueprintEditor> Editor = InEditor.Pin();
-    if (!Editor.IsValid())
-    {
-        FN2CLogger::Get().LogError(TEXT("Invalid Blueprint Editor pointer"));
-        return;
-    }
-
-    // Get focused graph
-    UEdGraph* FocusedGraph = Editor->GetFocusedGraph();
-    if (!FocusedGraph)
-    {
-        FN2CLogger::Get().LogError(TEXT("No focused graph in Blueprint Editor"));
-        return;
-    }
-
-    // Collect nodes
-    FN2CNodeCollector& Collector = FN2CNodeCollector::Get();
     TArray<UK2Node*> CollectedNodes;
-    if (!Collector.CollectNodesFromGraph(FocusedGraph, CollectedNodes))
+    FString SafeGraphName;
+    FString RootPath;
+    FString FlowDir;
+    if (!PrepareSaveContext(InEditor, CollectedNodes, SafeGraphName, RootPath, FlowDir))
     {
-        FN2CLogger::Get().LogError(TEXT("Failed to collect nodes for parsed JSON"));
         return;
     }
+
+    const FString ParsedJsonPath = FPaths::Combine(FlowDir, FString::Printf(TEXT("%s_parsed.json"), *SafeGraphName));
 
     FString ParsedJson;
-    FString ParsedJsonError;
-    if (!FN2CParsedDumpBuilder::BuildParsedJsonFromNodes(CollectedNodes, ParsedJson, ParsedJsonError))
+    if (!FPaths::FileExists(ParsedJsonPath))
     {
-        FN2CLogger::Get().LogError(FString::Printf(TEXT("Failed to build parsed JSON: %s"), *ParsedJsonError));
+        FN2CLogger::Get().LogError(FString::Printf(TEXT("Parsed JSON file not found: %s"), *ParsedJsonPath));
+        return;
+    }
+    if (!FFileHelper::LoadFileToString(ParsedJson, *ParsedJsonPath))
+    {
+        FN2CLogger::Get().LogError(FString::Printf(TEXT("Failed to read parsed JSON file: %s"), *ParsedJsonPath));
         return;
     }
 
@@ -952,7 +931,6 @@ void FN2CEditorIntegration::ExecuteCopyParsedJson(TWeakPtr<FBlueprintEditor> InE
     {
         FPlatformApplicationMisc::ClipboardCopy(*ParsedJson);
 
-        // Show notification
         FNotificationInfo Info(NSLOCTEXT("NodeToCode", "ParsedJsonCopied", "Parsed JSON copied to clipboard"));
         Info.bFireAndForget = true;
         Info.FadeInDuration = 0.2f;
