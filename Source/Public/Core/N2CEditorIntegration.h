@@ -62,7 +62,7 @@ private:
     void ExecuteSaveJson(TWeakPtr<FBlueprintEditor> InEditor);
 
     /** Execute save parsed/flow files for a specific editor */
-    void ExecuteSaveParsedFlowFiles(TWeakPtr<FBlueprintEditor> InEditor);
+    bool ExecuteSaveParsedFlowFiles(TWeakPtr<FBlueprintEditor> InEditor);
 
     /** Execute save parsed JSON file for a specific editor */
     void ExecuteSaveParsedJson(TWeakPtr<FBlueprintEditor> InEditor);

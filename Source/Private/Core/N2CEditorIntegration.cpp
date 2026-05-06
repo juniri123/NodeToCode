@@ -478,7 +478,10 @@ void FN2CEditorIntegration::ExecuteBp2CppUsingMCP(TWeakPtr<FBlueprintEditor> InE
         return;
     }
 
-    ExecuteSaveParsedFlowFiles(InEditor);
+    if (!ExecuteSaveParsedFlowFiles(InEditor))
+    {
+        return;
+    }
 
     TArray<UK2Node*> CollectedNodes;
     FString SafeGraphName;
@@ -498,46 +501,22 @@ void FN2CEditorIntegration::ExecuteBp2CppUsingMCP(TWeakPtr<FBlueprintEditor> InE
     FString FlowText;
     FString BlueprintJson;
 
-    if (Settings->bMcpIncludeFlowJson)
+    if (Settings->bMcpIncludeFlowJson && !FFileHelper::LoadFileToString(FlowJson, *FlowJsonPath))
     {
-        if (!FPaths::FileExists(FlowJsonPath))
-        {
-            FN2CLogger::Get().LogError(FString::Printf(TEXT("Flow JSON file not found: %s"), *FlowJsonPath));
-            return;
-        }
-        if (!FFileHelper::LoadFileToString(FlowJson, *FlowJsonPath))
-        {
-            FN2CLogger::Get().LogError(FString::Printf(TEXT("Failed to read flow JSON file: %s"), *FlowJsonPath));
-            return;
-        }
+        FN2CLogger::Get().LogError(FString::Printf(TEXT("Failed to read flow JSON file: %s"), *FlowJsonPath));
+        return;
     }
 
-    if (Settings->bMcpIncludeParsedJson)
+    if (Settings->bMcpIncludeParsedJson && !FFileHelper::LoadFileToString(ParsedJson, *ParsedJsonPath))
     {
-        if (!FPaths::FileExists(ParsedJsonPath))
-        {
-            FN2CLogger::Get().LogError(FString::Printf(TEXT("Parsed JSON file not found: %s"), *ParsedJsonPath));
-            return;
-        }
-        if (!FFileHelper::LoadFileToString(ParsedJson, *ParsedJsonPath))
-        {
-            FN2CLogger::Get().LogError(FString::Printf(TEXT("Failed to read parsed JSON file: %s"), *ParsedJsonPath));
-            return;
-        }
+        FN2CLogger::Get().LogError(FString::Printf(TEXT("Failed to read parsed JSON file: %s"), *ParsedJsonPath));
+        return;
     }
 
-    if (Settings->bMcpIncludeFlowText)
+    if (Settings->bMcpIncludeFlowText && !FFileHelper::LoadFileToString(FlowText, *FlowTextPath))
     {
-        if (!FPaths::FileExists(FlowTextPath))
-        {
-            FN2CLogger::Get().LogError(FString::Printf(TEXT("Flow text file not found: %s"), *FlowTextPath));
-            return;
-        }
-        if (!FFileHelper::LoadFileToString(FlowText, *FlowTextPath))
-        {
-            FN2CLogger::Get().LogError(FString::Printf(TEXT("Failed to read flow text file: %s"), *FlowTextPath));
-            return;
-        }
+        FN2CLogger::Get().LogError(FString::Printf(TEXT("Failed to read flow text file: %s"), *FlowTextPath));
+        return;
     }
 
     if (Settings->bMcpIncludeBlueprintJson)
@@ -605,7 +584,7 @@ void FN2CEditorIntegration::ExecuteBp2CppUsingMCP(TWeakPtr<FBlueprintEditor> InE
     );
 }
 
-void FN2CEditorIntegration::ExecuteSaveParsedFlowFiles(TWeakPtr<FBlueprintEditor> InEditor)
+bool FN2CEditorIntegration::ExecuteSaveParsedFlowFiles(TWeakPtr<FBlueprintEditor> InEditor)
 {
     TArray<UK2Node*> CollectedNodes;
     FString SafeGraphName;
@@ -613,7 +592,7 @@ void FN2CEditorIntegration::ExecuteSaveParsedFlowFiles(TWeakPtr<FBlueprintEditor
     FString FlowDir;
     if (!PrepareSaveContext(InEditor, CollectedNodes, SafeGraphName, RootPath, FlowDir))
     {
-        return;
+        return false;
     }
 
     FN2CFlowData FlowData;
@@ -621,7 +600,7 @@ void FN2CEditorIntegration::ExecuteSaveParsedFlowFiles(TWeakPtr<FBlueprintEditor
     if (!FN2CFlowBuilder::BuildFlowDataFromNodes(CollectedNodes, FlowData, FlowDataError))
     {
         FN2CLogger::Get().LogError(FString::Printf(TEXT("Failed to build flow data: %s"), *FlowDataError));
-        return;
+        return false;
     }
 
     FString ParsedJson;
@@ -629,7 +608,7 @@ void FN2CEditorIntegration::ExecuteSaveParsedFlowFiles(TWeakPtr<FBlueprintEditor
     if (!FN2CParsedDumpBuilder::BuildParsedJsonFromNodes(CollectedNodes, ParsedJson, ParsedJsonError, &FlowData.GuidAlias))
     {
         FN2CLogger::Get().LogError(FString::Printf(TEXT("Failed to build parsed JSON: %s"), *ParsedJsonError));
-        return;
+        return false;
     }
 
     FString FlowJson;
@@ -637,7 +616,7 @@ void FN2CEditorIntegration::ExecuteSaveParsedFlowFiles(TWeakPtr<FBlueprintEditor
     if (!FN2CFlowBuilder::BuildFlowJsonFromNodes(CollectedNodes, FlowJson, FlowJsonError))
     {
         FN2CLogger::Get().LogError(FString::Printf(TEXT("Failed to build flow JSON: %s"), *FlowJsonError));
-        return;
+        return false;
     }
 
     FString FlowTextV1;
@@ -645,7 +624,7 @@ void FN2CEditorIntegration::ExecuteSaveParsedFlowFiles(TWeakPtr<FBlueprintEditor
     if (!FN2CFlowBuilder::BuildFlowTextFromNodes(CollectedNodes, FlowTextV1, FlowTextErrorV1))
     {
         FN2CLogger::Get().LogError(FString::Printf(TEXT("Failed to build flow text v1: %s"), *FlowTextErrorV1));
-        return;
+        return false;
     }
 
     FString FlowTextV2;
@@ -653,7 +632,7 @@ void FN2CEditorIntegration::ExecuteSaveParsedFlowFiles(TWeakPtr<FBlueprintEditor
     if (!FN2CFlowBuilder_01::BuildFlowTextFromNodes_01(CollectedNodes, FlowTextV2, FlowTextErrorV2))
     {
         FN2CLogger::Get().LogError(FString::Printf(TEXT("Failed to build flow text v2: %s"), *FlowTextErrorV2));
-        return;
+        return false;
     }
 
     const FString ParsedJsonPath = FPaths::Combine(FlowDir, FString::Printf(TEXT("%s_parsed.json"), *SafeGraphName));
@@ -664,27 +643,27 @@ void FN2CEditorIntegration::ExecuteSaveParsedFlowFiles(TWeakPtr<FBlueprintEditor
     if (!FFileHelper::SaveStringToFile(ParsedJson, *ParsedJsonPath))
     {
         FN2CLogger::Get().LogError(FString::Printf(TEXT("Failed to save parsed JSON: %s"), *ParsedJsonPath));
-        return;
+        return false;
     }
     if (!FFileHelper::SaveStringToFile(FlowJson, *FlowJsonPath))
     {
         FN2CLogger::Get().LogError(FString::Printf(TEXT("Failed to save flow JSON: %s"), *FlowJsonPath));
-        return;
+        return false;
     }
     if (!FFileHelper::SaveStringToFile(FlowTextV1, *FlowTextPathV1))
     {
         FN2CLogger::Get().LogError(FString::Printf(TEXT("Failed to save flow text v1: %s"), *FlowTextPathV1));
-        return;
+        return false;
     }
     if (!FFileHelper::SaveStringToFile(FlowTextV2, *FlowTextPathV2))
     {
         FN2CLogger::Get().LogError(FString::Printf(TEXT("Failed to save flow text v2: %s"), *FlowTextPathV2));
-        return;
+        return false;
     }
     if (!FFileHelper::SaveStringToFile(FlowTextV1, *FlowTextPath))
     {
         FN2CLogger::Get().LogError(FString::Printf(TEXT("Failed to save flow text: %s"), *FlowTextPath));
-        return;
+        return false;
     }
 
     FNotificationInfo Info(NSLOCTEXT("NodeToCode", "ParsedFlowSaved", "Parsed/Flow files saved"));
@@ -693,6 +672,7 @@ void FN2CEditorIntegration::ExecuteSaveParsedFlowFiles(TWeakPtr<FBlueprintEditor
     Info.FadeOutDuration = 0.5f;
     Info.ExpireDuration = 2.0f;
     FSlateNotificationManager::Get().AddNotification(Info);
+    return true;
 }
 
 void FN2CEditorIntegration::ExecuteSaveParsedJson(TWeakPtr<FBlueprintEditor> InEditor)
