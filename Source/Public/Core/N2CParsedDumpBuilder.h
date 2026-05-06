@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Models/Python/N2CFlowModel.h"
 
 class UEdGraph;
 class UEdGraphNode;
@@ -18,9 +19,9 @@ class FN2CParsedDumpBuilder
 {
 public:
     /** Graph에서 덤프 유사 JSON 생성 */
-    static bool BuildParsedJsonFromGraph(UEdGraph* Graph, FString& OutJson, FString& OutError);
+    static bool BuildParsedJsonFromGraph(UEdGraph* Graph, FString& OutJson, FString& OutError, const N2CFlow::FGUIDAlias* GuidAlias = nullptr);
 
     /** Nodes에서 덤프 유사 JSON 생성 */
-    static bool BuildParsedJsonFromNodes(const TArray<UK2Node*>& Nodes, FString& OutJson, FString& OutError);
+    static bool BuildParsedJsonFromNodes(const TArray<UK2Node*>& Nodes, FString& OutJson, FString& OutError, const N2CFlow::FGUIDAlias* GuidAlias = nullptr);
 };
 #pragma endregion

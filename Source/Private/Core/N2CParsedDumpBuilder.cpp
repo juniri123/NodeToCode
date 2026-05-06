@@ -118,9 +118,21 @@ TSharedPtr<FJsonObject> PinTypeToJson(const FEdGraphPinType& PinType)
     Obj->SetStringField(TEXT("bSerializeAsSinglePrecisionFloat"), BoolString(PinType.bSerializeAsSinglePrecisionFloat));
     return Obj;
 }
+
+FString ResolveNodeGuidForParsed(const FGuid& Guid, const N2CFlow::FGUIDAlias* GuidAlias)
+{
+    const FString GuidStr = Guid.ToString(EGuidFormats::Digits);
+    return GuidAlias ? GuidAlias->ResolveNodeID(GuidStr) : GuidStr;
 }
 
-bool FN2CParsedDumpBuilder::BuildParsedJsonFromGraph(UEdGraph* Graph, FString& OutJson, FString& OutError)
+FString ResolvePinGuidForParsed(const FGuid& Guid, const N2CFlow::FGUIDAlias* GuidAlias)
+{
+    const FString GuidStr = Guid.ToString(EGuidFormats::Digits);
+    return GuidAlias ? GuidAlias->ResolvePinID(GuidStr) : GuidStr;
+}
+}
+
+bool FN2CParsedDumpBuilder::BuildParsedJsonFromGraph(UEdGraph* Graph, FString& OutJson, FString& OutError, const N2CFlow::FGUIDAlias* GuidAlias)
 {
     if (!Graph)
     {
@@ -137,10 +149,10 @@ bool FN2CParsedDumpBuilder::BuildParsedJsonFromGraph(UEdGraph* Graph, FString& O
         }
     }
 
-    return BuildParsedJsonFromNodes(Nodes, OutJson, OutError);
+    return BuildParsedJsonFromNodes(Nodes, OutJson, OutError, GuidAlias);
 }
 
-bool FN2CParsedDumpBuilder::BuildParsedJsonFromNodes(const TArray<UK2Node*>& Nodes, FString& OutJson, FString& OutError)
+bool FN2CParsedDumpBuilder::BuildParsedJsonFromNodes(const TArray<UK2Node*>& Nodes, FString& OutJson, FString& OutError, const N2CFlow::FGUIDAlias* GuidAlias)
 {
     TArray<TSharedPtr<FJsonValue>> NodeArray;
 
@@ -168,7 +180,7 @@ bool FN2CParsedDumpBuilder::BuildParsedJsonFromNodes(const TArray<UK2Node*>& Nod
         }
         if (Node->NodeGuid.IsValid())
         {
-            NodeObj->SetStringField(TEXT("NodeGuid"), Node->NodeGuid.ToString(EGuidFormats::Digits));
+            NodeObj->SetStringField(TEXT("NodeGuid"), ResolveNodeGuidForParsed(Node->NodeGuid, GuidAlias));
         }
 
         // 함수 참조/변수 참조/매크로 참조
@@ -208,7 +220,7 @@ bool FN2CParsedDumpBuilder::BuildParsedJsonFromNodes(const TArray<UK2Node*>& Nod
             }
 
             TSharedPtr<FJsonObject> PinObj = MakeShared<FJsonObject>();
-            PinObj->SetStringField(TEXT("PinId"), Pin->PinId.ToString(EGuidFormats::Digits));
+            PinObj->SetStringField(TEXT("PinId"), ResolvePinGuidForParsed(Pin->PinId, GuidAlias));
             PinObj->SetStringField(TEXT("PinName"), Pin->PinName.ToString());
             if (!Pin->PinFriendlyName.IsEmpty())
             {
@@ -229,7 +241,7 @@ bool FN2CParsedDumpBuilder::BuildParsedJsonFromNodes(const TArray<UK2Node*>& Nod
                     }
                     TSharedPtr<FJsonObject> LinkObj = MakeShared<FJsonObject>();
                     LinkObj->SetStringField(TEXT("Node"), Linked->GetOwningNode()->GetName());
-                    LinkObj->SetStringField(TEXT("PinId"), Linked->PinId.ToString(EGuidFormats::Digits));
+                    LinkObj->SetStringField(TEXT("PinId"), ResolvePinGuidForParsed(Linked->PinId, GuidAlias));
                     LinkedArray.Add(MakeShared<FJsonValueObject>(LinkObj));
                 }
                 PinObj->SetArrayField(TEXT("LinkedTo"), LinkedArray);
