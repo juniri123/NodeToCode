@@ -541,5 +541,91 @@ namespace N2CFlow
 
         return true;
     }
+    
+    
+    
+    
+    FString FGUIDAlias::AcquireNodeID(const FGuid& Guid)
+    {
+        const FString GuidStr = Guid.ToString();
+        if (GuidStr.IsEmpty())
+        {
+            return GuidStr;
+        }
+
+        if (FString* Existing = GuidToNID.Find(GuidStr))
+        {
+            return *Existing;
+        }
+
+        const FString NID = FString::Printf(TEXT("N%d"), NextNodeIndex++);
+        GuidToNID.Add(GuidStr, NID);
+        NID2GUID.Add(NID, GuidStr);
+        return NID;
+    }
+
+    FString FGUIDAlias::AcquirePinID(const FGuid& Guid)
+    {
+        const FString GuidStr = Guid.ToString();
+        if (GuidStr.IsEmpty())
+        {
+            return GuidStr;
+        }
+
+        if (FString* Existing = GuidToPID.Find(GuidStr))
+        {
+            return *Existing;
+        }
+
+        const FString PID = FString::Printf(TEXT("P%d"), NextPinIndex++);
+        GuidToPID.Add(GuidStr, PID);
+        PID2GUID.Add(PID, GuidStr);
+        return PID;
+    }
+
+    TSharedPtr<FJsonObject> FGUIDAlias::ToJsonObject() const
+    {
+        TSharedPtr<FJsonObject> JsonObject = MakeShared<FJsonObject>();
+
+        TArray<TSharedPtr<FJsonValue>> NodeValues;
+        for (const TPair<FString, FString>& Pair : GuidToNID)
+        {
+            TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
+            Entry->SetStringField(TEXT("guid"), Pair.Key);
+            Entry->SetStringField(TEXT("nid"), Pair.Value);
+            NodeValues.Add(MakeShared<FJsonValueObject>(Entry));
+        }
+        JsonObject->SetArrayField(TEXT("node_aliases"), NodeValues);
+
+        TArray<TSharedPtr<FJsonValue>> PinValues;
+        for (const TPair<FString, FString>& Pair : GuidToPID)
+        {
+            TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
+            Entry->SetStringField(TEXT("guid"), Pair.Key);
+            Entry->SetStringField(TEXT("pid"), Pair.Value);
+            PinValues.Add(MakeShared<FJsonValueObject>(Entry));
+        }
+        JsonObject->SetArrayField(TEXT("pin_aliases"), PinValues);
+
+        return JsonObject;
+    }
+
+    FString FGUIDAlias::ResolveNodeID(const FString& Guid) const
+    {
+        if (const FString* NID = GuidToNID.Find(Guid))
+        {
+            return *NID;
+        }
+        return Guid;
+    }
+
+    FString FGUIDAlias::ResolvePinID(const FString& Guid) const
+    {
+        if (const FString* PID = GuidToPID.Find(Guid))
+        {
+            return *PID;
+        }
+        return Guid;
+    }
 } // namespace N2CFlow
 #pragma endregion

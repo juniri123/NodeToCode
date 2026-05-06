@@ -1059,6 +1059,9 @@ TSharedPtr<FJsonObject> FN2CFlowBuilder::FlowDataToJsonObject(const FN2CFlowData
     }
     RootObject->SetArrayField(TEXT("common_step_keys"), CommonKeys);
 
+    // guid alias 매핑 저장
+    RootObject->SetObjectField(TEXT("guid_alias"), Data.GuidAlias.ToJsonObject());
+
     // 모든 step을 JSON으로 저장
     TSharedPtr<FJsonObject> StepsObject = MakeShared<FJsonObject>();
     for (const TPair<FString, TSharedPtr<N2CFlow::Step>>& Pair : Data.StepsByKey)

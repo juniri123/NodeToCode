@@ -1,6 +1,7 @@
 ﻿#pragma once
 
 #include "CoreMinimal.h"
+#include "Models/Python/N2CFlowModel.h"
 
 class UEdGraph;
 class UK2Node;
@@ -19,6 +20,7 @@ struct FN2CFlowData
     TMap<FString, TSharedPtr<N2CFlow::Step>> StepsByKey;
     TSharedPtr<N2CFlow::Step> EntryStep;
     TMap<FString, TSharedPtr<N2CFlow::Step>> CommonSteps;
+    N2CFlow::FGUIDAlias GuidAlias;
 };
 
 class FN2CFlowBuilder

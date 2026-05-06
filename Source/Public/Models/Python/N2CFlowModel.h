@@ -1,6 +1,7 @@
 ﻿#pragma once
 
 #include "CoreMinimal.h"
+#include "Misc/Guid.h"
 
 class FJsonObject;
 
@@ -143,6 +144,24 @@ namespace N2CFlow
         bool bIsFallthrough = false;
 
         MergingGroup(TSharedPtr<Step> InCommonStep, TSharedPtr<Step> InMergingPointStep, TArray<TSharedPtr<Step>> InPlaceholders, bool bInIsFallthrough);
+    };
+    
+    struct FGUIDAlias
+    {
+        TMap<FString, FString> GuidToNID;
+        TMap<FString, FString> GuidToPID;
+        TMap<FString, FString> NID2GUID;
+        TMap<FString, FString> PID2GUID;
+        int32 NextNodeIndex = 1;
+        int32 NextPinIndex = 1;
+
+        FString AcquireNodeID(const FGuid& Guid);
+        FString AcquirePinID(const FGuid& Guid);
+
+        FString ResolveNodeID(const FString& GuidStr) const;
+        FString ResolvePinID(const FString& GuidStr) const;
+
+        TSharedPtr<FJsonObject> ToJsonObject() const;
     };
 } // namespace N2CFlow
 #pragma endregion
