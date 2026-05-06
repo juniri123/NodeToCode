@@ -65,8 +65,8 @@ void UN2CMcpModule::CreateSessionAsync(const FN2CMcpSessionRequest& Request, FN2
     TSharedPtr<FJsonObject> RootObject = MakeShared<FJsonObject>();
     if (Request.PayloadMode == EN2CMcpPayloadMode::RawContent)
     {
-        RootObject->SetStringField(TEXT("flow"), Request.FlowJson);
-        RootObject->SetStringField(TEXT("parsed"), Request.ParsedJson);
+        RootObject->SetStringField(TEXT("flow_json"), Request.FlowJson);
+        RootObject->SetStringField(TEXT("parsed_json"), Request.ParsedJson);
     }
     else
     {
