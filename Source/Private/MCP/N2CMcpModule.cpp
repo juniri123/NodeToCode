@@ -1,6 +1,8 @@
-﻿// Copyright (c) 2025 Nick McClure (Protospatial). All Rights Reserved.
+// Copyright (c) 2025 Nick McClure (Protospatial). All Rights Reserved.
 
 #include "MCP/N2CMcpModule.h"
+
+#include "Dom/JsonObject.h"
 
 #include "HttpModule.h"
 #include "Interfaces/IHttpRequest.h"
@@ -65,8 +67,28 @@ void UN2CMcpModule::CreateSessionAsync(const FN2CMcpSessionRequest& Request, FN2
     TSharedPtr<FJsonObject> RootObject = MakeShared<FJsonObject>();
     if (Request.PayloadMode == EN2CMcpPayloadMode::RawContent)
     {
-        RootObject->SetStringField(TEXT("flow_json"), Request.FlowJson);
-        RootObject->SetStringField(TEXT("parsed_json"), Request.ParsedJson);
+        TSharedPtr<FJsonObject> FlowJsonObject;
+        TSharedRef<TJsonReader<>> FlowReader = TJsonReaderFactory<>::Create(Request.FlowJson);
+        if (!FJsonSerializer::Deserialize(FlowReader, FlowJsonObject) || !FlowJsonObject.IsValid())
+        {
+            const FString Error = TEXT("Failed to parse flow_json content before MCP session request.");
+            FN2CLogger::Get().LogError(Error);
+            OnComplete.ExecuteIfBound(false, FString(), Error);
+            return;
+        }
+
+        TSharedPtr<FJsonObject> ParsedJsonObject;
+        TSharedRef<TJsonReader<>> ParsedReader = TJsonReaderFactory<>::Create(Request.ParsedJson);
+        if (!FJsonSerializer::Deserialize(ParsedReader, ParsedJsonObject) || !ParsedJsonObject.IsValid())
+        {
+            const FString Error = TEXT("Failed to parse parsed_json content before MCP session request.");
+            FN2CLogger::Get().LogError(Error);
+            OnComplete.ExecuteIfBound(false, FString(), Error);
+            return;
+        }
+
+        RootObject->SetObjectField(TEXT("flow_json"), FlowJsonObject);
+        RootObject->SetObjectField(TEXT("parsed_json"), ParsedJsonObject);
     }
     else
     {

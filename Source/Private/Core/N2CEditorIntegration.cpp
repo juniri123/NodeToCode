@@ -478,6 +478,8 @@ void FN2CEditorIntegration::ExecuteBp2CppUsingMCP(TWeakPtr<FBlueprintEditor> InE
         return;
     }
 
+    ExecuteSaveParsedFlowFiles(InEditor);
+
     TArray<UK2Node*> CollectedNodes;
     FString SafeGraphName;
     FString RootPath;
@@ -487,6 +489,10 @@ void FN2CEditorIntegration::ExecuteBp2CppUsingMCP(TWeakPtr<FBlueprintEditor> InE
         return;
     }
 
+    const FString ParsedJsonPath = FPaths::Combine(FlowDir, FString::Printf(TEXT("%s_parsed.json"), *SafeGraphName));
+    const FString FlowJsonPath = FPaths::Combine(FlowDir, FString::Printf(TEXT("%s_flow.json"), *SafeGraphName));
+    const FString FlowTextPath = FPaths::Combine(FlowDir, FString::Printf(TEXT("%s_flow.txt"), *SafeGraphName));
+
     FString FlowJson;
     FString ParsedJson;
     FString FlowText;
@@ -494,30 +500,42 @@ void FN2CEditorIntegration::ExecuteBp2CppUsingMCP(TWeakPtr<FBlueprintEditor> InE
 
     if (Settings->bMcpIncludeFlowJson)
     {
-        FString FlowError;
-        if (!FN2CFlowBuilder::BuildFlowJsonFromNodes(CollectedNodes, FlowJson, FlowError))
+        if (!FPaths::FileExists(FlowJsonPath))
         {
-            FN2CLogger::Get().LogError(FString::Printf(TEXT("Failed to build flow JSON: %s"), *FlowError));
+            FN2CLogger::Get().LogError(FString::Printf(TEXT("Flow JSON file not found: %s"), *FlowJsonPath));
+            return;
+        }
+        if (!FFileHelper::LoadFileToString(FlowJson, *FlowJsonPath))
+        {
+            FN2CLogger::Get().LogError(FString::Printf(TEXT("Failed to read flow JSON file: %s"), *FlowJsonPath));
             return;
         }
     }
 
     if (Settings->bMcpIncludeParsedJson)
     {
-        FString ParsedJsonError;
-        if (!FN2CParsedDumpBuilder::BuildParsedJsonFromNodes(CollectedNodes, ParsedJson, ParsedJsonError))
+        if (!FPaths::FileExists(ParsedJsonPath))
         {
-            FN2CLogger::Get().LogError(FString::Printf(TEXT("Failed to build parsed JSON: %s"), *ParsedJsonError));
+            FN2CLogger::Get().LogError(FString::Printf(TEXT("Parsed JSON file not found: %s"), *ParsedJsonPath));
+            return;
+        }
+        if (!FFileHelper::LoadFileToString(ParsedJson, *ParsedJsonPath))
+        {
+            FN2CLogger::Get().LogError(FString::Printf(TEXT("Failed to read parsed JSON file: %s"), *ParsedJsonPath));
             return;
         }
     }
 
     if (Settings->bMcpIncludeFlowText)
     {
-        FString FlowTextError;
-        if (!FN2CFlowBuilder::BuildFlowTextFromNodes(CollectedNodes, FlowText, FlowTextError))
+        if (!FPaths::FileExists(FlowTextPath))
         {
-            FN2CLogger::Get().LogError(FString::Printf(TEXT("Failed to build flow text: %s"), *FlowTextError));
+            FN2CLogger::Get().LogError(FString::Printf(TEXT("Flow text file not found: %s"), *FlowTextPath));
+            return;
+        }
+        if (!FFileHelper::LoadFileToString(FlowText, *FlowTextPath))
+        {
+            FN2CLogger::Get().LogError(FString::Printf(TEXT("Failed to read flow text file: %s"), *FlowTextPath));
             return;
         }
     }
@@ -570,23 +588,8 @@ void FN2CEditorIntegration::ExecuteBp2CppUsingMCP(TWeakPtr<FBlueprintEditor> InE
 
     if (Settings->McpPayloadMode == EN2CMcpPayloadMode::FilePaths)
     {
-        if (!FlowJson.IsEmpty())
-        {
-            const FString FlowJsonPath = FPaths::Combine(FlowDir, FString::Printf(TEXT("%s_flow.json"), *SafeGraphName));
-            if (FFileHelper::SaveStringToFile(FlowJson, *FlowJsonPath))
-            {
-                Request.FlowFilename = FPaths::GetCleanFilename(FlowJsonPath);
-            }
-        }
-
-        if (!ParsedJson.IsEmpty())
-        {
-            const FString ParsedJsonPath = FPaths::Combine(FlowDir, FString::Printf(TEXT("%s_parsed.json"), *SafeGraphName));
-            if (FFileHelper::SaveStringToFile(ParsedJson, *ParsedJsonPath))
-            {
-                Request.ParsedFilename = FPaths::GetCleanFilename(ParsedJsonPath);
-            }
-        }
+        Request.FlowFilename = FPaths::GetCleanFilename(FlowJsonPath);
+        Request.ParsedFilename = FPaths::GetCleanFilename(ParsedJsonPath);
     }
 
     PendingMcpContext = MakeShared<FMcpLlmContext>();
