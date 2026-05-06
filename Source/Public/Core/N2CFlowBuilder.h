@@ -36,7 +36,9 @@ class FN2CFlowBuilder
         static bool BuildFlowTextFromNodes(const TArray<UK2Node*>& Nodes, FString& OutText, FString& OutError);
 
     private:
-        static bool BuildNodesFromK2Nodes(const TArray<UK2Node*>& Nodes, TMap<FString, TSharedPtr<N2CFlow::Node>>& OutNodesByName);
+        static bool BuildNodesFromK2Nodes(const TArray<UK2Node*>& Nodes,
+                                          TMap<FString, TSharedPtr<N2CFlow::Node>>& OutNodesByName,
+                                          N2CFlow::FGUIDAlias& OutGuidAlias);
         static void BuildStepsFromNodes(const TMap<FString, TSharedPtr<N2CFlow::Node>>& NodesByName, TMap<FString, TSharedPtr<N2CFlow::Step>>& OutStepsByKey);
         static TSharedPtr<N2CFlow::Step> FindEntryStep(const TMap<FString, TSharedPtr<N2CFlow::Step>>& StepsByKey);
         static bool BuildExecFlow(const TMap<FString, TSharedPtr<N2CFlow::Node>>& NodesByName,

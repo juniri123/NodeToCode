@@ -690,7 +690,7 @@ bool FN2CFlowBuilder::BuildFlowDataFromNodes(const TArray<UK2Node*>& Nodes, FN2C
     OutData = FN2CFlowData();
 
     // 1) Node/Pin/Link 생성
-    if (!BuildNodesFromK2Nodes(Nodes, OutData.NodesByName))
+    if (!BuildNodesFromK2Nodes(Nodes, OutData.NodesByName, OutData.GuidAlias))
     {
         OutError = TEXT("Failed to build nodes");
         return false;
@@ -764,7 +764,9 @@ bool FN2CFlowBuilder::BuildFlowJsonFromNodes(const TArray<UK2Node*>& Nodes, FStr
     return true;
 }
 
-bool FN2CFlowBuilder::BuildNodesFromK2Nodes(const TArray<UK2Node*>& Nodes, TMap<FString, TSharedPtr<N2CFlow::Node>>& OutNodesByName)
+bool FN2CFlowBuilder::BuildNodesFromK2Nodes(const TArray<UK2Node*>& Nodes,
+                                            TMap<FString, TSharedPtr<N2CFlow::Node>>& OutNodesByName,
+                                            N2CFlow::FGUIDAlias& OutGuidAlias)
 {
     OutNodesByName.Reset();
     // 1) 먼저 모든 노드/핀 정보를 수집하고
@@ -777,7 +779,7 @@ bool FN2CFlowBuilder::BuildNodesFromK2Nodes(const TArray<UK2Node*>& Nodes, TMap<
         }
 
         const FString NodeName = K2Node->GetName();
-        const FString NodeGuid = GuidToString(K2Node->NodeGuid);
+        const FString NodeGuid = OutGuidAlias.AcquireNodeID(K2Node->NodeGuid);
 
         // 노드 생성
         TSharedPtr<N2CFlow::Node> FlowNode = MakeShared<N2CFlow::Node>(NodeName, NodeGuid);
@@ -791,7 +793,7 @@ bool FN2CFlowBuilder::BuildNodesFromK2Nodes(const TArray<UK2Node*>& Nodes, TMap<
             }
 
             const FString PinName = PinDisplayName(Pin);
-            const FString PinGuid = GuidToString(Pin->PinId);
+            const FString PinGuid = OutGuidAlias.AcquirePinID(Pin->PinId);
             const bool bIsExec = (Pin->PinType.PinCategory == TEXT("exec"));
             const bool bIsOutput = (Pin->Direction == EGPD_Output);
 
