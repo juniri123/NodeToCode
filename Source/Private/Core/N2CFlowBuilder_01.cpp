@@ -34,10 +34,20 @@ namespace
         return Pin.bIsExec ? TEXT("exec") : TEXT("");
     }
 
+    FString DisplayNodeGuid_01(const FString& Guid, const N2CFlow::FGUIDAlias& GuidAlias)
+    {
+        return GuidAlias.ResolveNodeID(Guid);
+    }
+
+    FString DisplayPinGuid_01(const FString& Guid, const N2CFlow::FGUIDAlias& GuidAlias)
+    {
+        return GuidAlias.ResolvePinID(Guid);
+    }
+
     // 단일 Step을 텍스트 라인으로 변환
     // Step 그래프의 연결 정보는 이미 만들어져 있다고 보고,
     // 여기서는 Step의 상태 플래그에 따라 "어떻게 보일지"만 결정한다.
-    TArray<FString> PrintSingleStep_01(const TSharedPtr<N2CFlow::Step>& Step, bool bNoIndent)
+    TArray<FString> PrintSingleStep_01(const TSharedPtr<N2CFlow::Step>& Step, bool bNoIndent, const N2CFlow::FGUIDAlias& GuidAlias)
     {
         TArray<FString> Lines;
 
@@ -60,12 +70,14 @@ namespace
             for (const N2CFlow::Pin& Pin : Step->FromPins)
             {
                 const FString PinName = FlowPinDisplayName_01(Pin);
+                const FString PinGuid = DisplayPinGuid_01(Pin.Guid, GuidAlias);
+                const FString NodeGuid = DisplayNodeGuid_01(Pin.NodeGuid, GuidAlias);
                 Parts.Add(FString::Printf(TEXT("%s📌%s::%s from (📋%s::%s)"),
                                         *BranchIcon,
                                         *PinName,
-                                        *Pin.Guid,
+                                        *PinGuid,
                                         *Pin.NodeName,
-                                        *Pin.NodeGuid));
+                                        *NodeGuid));
             }
             BranchLabel = FString::Join(Parts, TEXT(", "));
         }
@@ -73,6 +85,7 @@ namespace
         // 머지로 인해 실제 공통 노드를 다른 섹션에서 출력하는 경우,
         // 현재 위치의 placeholder는 주석 처리된 흐름처럼 표시한다.
         const FString CommentOut = Step->bIsCommentOut ? TEXT("//") : TEXT("");
+        const FString StepNodeGuid = DisplayNodeGuid_01(Step->Node->Guid, GuidAlias);
 
         // Common Logic Placeholder 처리
         // 여러 흐름이 같은 노드로 합쳐질 때, 본문 흐름에는 실제 노드 대신 placeholder를 둔다.
@@ -91,7 +104,7 @@ namespace
                                         *CommentOut,
                                         *Step->Key,
                                         *Step->Node->Name,
-                                        *Step->Node->Guid));
+                                        *StepNodeGuid));
             }
             else
             {
@@ -102,7 +115,7 @@ namespace
                                         *BranchLabel,
                                         *Step->Key,
                                         *Step->Node->Name,
-                                        *Step->Node->Guid));
+                                        *StepNodeGuid));
             }
             return Lines;
         }
@@ -117,12 +130,14 @@ namespace
             for (const N2CFlow::Pin& Pin : Step->FromPins)
             {
                 const FString PinName = FlowPinDisplayName_01(Pin);
+                const FString PinGuid = DisplayPinGuid_01(Pin.Guid, GuidAlias);
+                const FString NodeGuid = DisplayNodeGuid_01(Pin.NodeGuid, GuidAlias);
                 Lines.Add(FString::Printf(TEXT("%s📌%s::%s from (📋%s::%s)"),
                                         *IndentPrefix,
                                         *PinName,
-                                        *Pin.Guid,
+                                        *PinGuid,
                                         *Pin.NodeName,
-                                        *Pin.NodeGuid));
+                                        *NodeGuid));
             }
             Lines.Add(IndentPrefix + TEXT("----- Placeholders -----"));
             for (const TSharedPtr<N2CFlow::Step>& Placeholder : Step->CommonPlaceholders)
@@ -133,7 +148,7 @@ namespace
                 }
             }
             Lines.Add(IndentPrefix + TEXT("---------------------"));
-            Lines.Add(FString::Printf(TEXT("%s📋%s::%s"), *IndentPrefix, *Step->Node->Name, *Step->Node->Guid));
+            Lines.Add(FString::Printf(TEXT("%s📋%s::%s"), *IndentPrefix, *Step->Node->Name, *StepNodeGuid));
             return Lines;
         }
 
@@ -148,11 +163,12 @@ namespace
             {
                 if (Placeholder.IsValid() && Placeholder->Node.IsValid())
                 {
+                    const FString PlaceholderNodeGuid = DisplayNodeGuid_01(Placeholder->Node->Guid, GuidAlias);
                     Lines.Add(FString::Printf(TEXT("%s%s (📋%s::%s)"),
                                             *IndentPrefix,
                                             *Placeholder->Key,
                                             *Placeholder->Node->Name,
-                                            *Placeholder->Node->Guid));
+                                            *PlaceholderNodeGuid));
                 }
             }
             Lines.Add(IndentPrefix + TEXT("---------------------"));
@@ -170,7 +186,7 @@ namespace
                                     *BranchedIndent,
                                     *CommentOut,
                                     *Step->Node->Name,
-                                    *Step->Node->Guid));
+                                    *StepNodeGuid));
             return Lines;
         }
 
@@ -181,7 +197,7 @@ namespace
                                 *IndentPrefix,
                                 *BranchLabel,
                                 *Step->Node->Name,
-                                *Step->Node->Guid));
+                                *StepNodeGuid));
         return Lines;
     }
 
@@ -296,19 +312,19 @@ namespace
     }
 
     // 비재귀 버전
-    TArray<FString> PrintSteps_01(const TSharedPtr<N2CFlow::Step>& RootStep)
+    TArray<FString> PrintSteps_01(const TSharedPtr<N2CFlow::Step>& RootStep, const N2CFlow::FGUIDAlias& GuidAlias)
     {
         TArray<FString> Lines;
         const TArray<TSharedPtr<N2CFlow::Step>> OrderedSteps = CollectPrintOrder_02(RootStep);
         for (const TSharedPtr<N2CFlow::Step>& Current : OrderedSteps)
         {
-            Lines.Append(PrintSingleStep_01(Current, false));
+            Lines.Append(PrintSingleStep_01(Current, false, GuidAlias));
         }
         return Lines;
     }
 
     // common_steps에 저장된 모든 step을 순회하며 출력
-    TArray<FString> PrintCommonSteps_01(const TMap<FString, TSharedPtr<N2CFlow::Step>>& CommonSteps)
+    TArray<FString> PrintCommonSteps_01(const TMap<FString, TSharedPtr<N2CFlow::Step>>& CommonSteps, const N2CFlow::FGUIDAlias& GuidAlias)
     {
         TArray<FString> Lines;
         if (CommonSteps.Num() == 0)
@@ -321,7 +337,7 @@ namespace
         for (const TPair<FString, TSharedPtr<N2CFlow::Step>>& Pair : CommonSteps)
         {
             Lines.Add(FString::Printf(TEXT("[#%d]"), Num));
-            Lines.Append(PrintSteps_01(Pair.Value));
+            Lines.Append(PrintSteps_01(Pair.Value, GuidAlias));
             Lines.Add(TEXT(""));
             ++Num;
         }
@@ -364,11 +380,11 @@ TArray<FString> FN2CFlowBuilder_01::FlowDataToTextLines_01(const FN2CFlowData& D
     }
 
     Lines.Add(TEXT("=========== Steps ==========="));
-    Lines.Append(PrintSteps_01(Data.EntryStep));
+    Lines.Append(PrintSteps_01(Data.EntryStep, Data.GuidAlias));
     Lines.Add(TEXT(""));
     Lines.Add(TEXT(""));
     Lines.Add(TEXT("=========== Common Steps ==========="));
-    Lines.Append(PrintCommonSteps_01(Data.CommonSteps));
+    Lines.Append(PrintCommonSteps_01(Data.CommonSteps, Data.GuidAlias));
     return Lines;
 }
 #pragma endregion
