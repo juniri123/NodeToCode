@@ -560,7 +560,6 @@ namespace N2CFlow
 
         const FString NID = FString::Printf(TEXT("N%d"), NextNodeIndex++);
         GuidToNID.Add(GuidStr, NID);
-        NID2GUID.Add(NID, GuidStr);
         return NID;
     }
 
@@ -579,7 +578,6 @@ namespace N2CFlow
 
         const FString PID = FString::Printf(TEXT("P%d"), NextPinIndex++);
         GuidToPID.Add(GuidStr, PID);
-        PID2GUID.Add(PID, GuidStr);
         return PID;
     }
 
@@ -587,25 +585,19 @@ namespace N2CFlow
     {
         TSharedPtr<FJsonObject> JsonObject = MakeShared<FJsonObject>();
 
-        TArray<TSharedPtr<FJsonValue>> NodeValues;
+        TSharedPtr<FJsonObject> NodeAliasesObject = MakeShared<FJsonObject>();
         for (const TPair<FString, FString>& Pair : GuidToNID)
         {
-            TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
-            Entry->SetStringField(TEXT("guid"), Pair.Key);
-            Entry->SetStringField(TEXT("nid"), Pair.Value);
-            NodeValues.Add(MakeShared<FJsonValueObject>(Entry));
+            NodeAliasesObject->SetStringField(Pair.Key, Pair.Value);
         }
-        JsonObject->SetArrayField(TEXT("node_aliases"), NodeValues);
+        JsonObject->SetObjectField(TEXT("GuidToNID"), NodeAliasesObject);
 
-        TArray<TSharedPtr<FJsonValue>> PinValues;
+        TSharedPtr<FJsonObject> PinAliasesObject = MakeShared<FJsonObject>();
         for (const TPair<FString, FString>& Pair : GuidToPID)
         {
-            TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
-            Entry->SetStringField(TEXT("guid"), Pair.Key);
-            Entry->SetStringField(TEXT("pid"), Pair.Value);
-            PinValues.Add(MakeShared<FJsonValueObject>(Entry));
+            PinAliasesObject->SetStringField(Pair.Key, Pair.Value);
         }
-        JsonObject->SetArrayField(TEXT("pin_aliases"), PinValues);
+        JsonObject->SetObjectField(TEXT("GuidToPID"), PinAliasesObject);
 
         return JsonObject;
     }

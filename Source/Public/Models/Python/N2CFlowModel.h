@@ -150,8 +150,6 @@ namespace N2CFlow
     {
         TMap<FString, FString> GuidToNID;
         TMap<FString, FString> GuidToPID;
-        TMap<FString, FString> NID2GUID;
-        TMap<FString, FString> PID2GUID;
         int32 NextNodeIndex = 1;
         int32 NextPinIndex = 1;
 
