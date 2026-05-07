@@ -29,6 +29,19 @@ struct FN2CMcpSessionRequest
     FString SessionCreateEndpoint;
 };
 
+USTRUCT()
+struct FN2CMcpInspectBlueprintRequest
+{
+    GENERATED_BODY()
+
+    FString AssetPath;
+    TArray<FString> Strands;
+    bool bRefresh = true;
+
+    FString ServerBaseUrl;
+    FString InspectBlueprintEndpoint;
+};
+
 /**
  * @class UN2CMcpModule
  * @brief MCP integration module for BP -> C++ workflow
@@ -40,11 +53,22 @@ class NODETOCODE_API UN2CMcpModule : public UObject
 
 public:
     DECLARE_DELEGATE_ThreeParams(FN2CMcpSessionComplete, bool /*bSuccess*/, const FString& /*SessionId*/, const FString& /*Error*/);
+    DECLARE_DELEGATE_ThreeParams(FN2CMcpInspectBlueprintComplete, bool /*bSuccess*/, const FString& /*ResponseBody*/, const FString& /*Error*/);
 
     /** Get the singleton instance */
     static UN2CMcpModule* Get();
 
     /** Create a new MCP session */
     void CreateSessionAsync(const FN2CMcpSessionRequest& Request, FN2CMcpSessionComplete OnComplete);
+
+    /** Call the inspect-blueprint MCP API */
+    void InspectBlueprintAsync(const FN2CMcpInspectBlueprintRequest& Request, FN2CMcpInspectBlueprintComplete OnComplete);
+
+    /** Download a cached inspect-blueprint file by absolute server-side path */
+    void DownloadInspectFileAsync(
+        const FString& ServerBaseUrl,
+        const FString& FileEndpoint,
+        const FString& AbsoluteFilePath,
+        FN2CMcpInspectBlueprintComplete OnComplete);
 };
 #pragma endregion

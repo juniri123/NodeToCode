@@ -79,6 +79,9 @@ private:
     /** Execute BP to C++ conversion using MCP workflow */
     void ExecuteBp2CppUsingMCP(TWeakPtr<FBlueprintEditor> InEditor);
 
+    /** Execute inspect-blueprint MCP API request and save the response to file */
+    void ExecuteInspectBlueprintAuraMCP(TWeakPtr<FBlueprintEditor> InEditor);
+
     /** Execute copy flow text to clipboard for a specific editor */
     void ExecuteCopyFlowText(TWeakPtr<FBlueprintEditor> InEditor);
 

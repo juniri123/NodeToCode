@@ -584,6 +584,137 @@ void FN2CEditorIntegration::ExecuteBp2CppUsingMCP(TWeakPtr<FBlueprintEditor> InE
     );
 }
 
+void FN2CEditorIntegration::ExecuteInspectBlueprintAuraMCP(TWeakPtr<FBlueprintEditor> InEditor)
+{
+    TSharedPtr<FBlueprintEditor> Editor = InEditor.Pin();
+    if (!Editor.IsValid())
+    {
+        FN2CLogger::Get().LogError(TEXT("Invalid Blueprint Editor pointer"));
+        return;
+    }
+
+    UEdGraph* FocusedGraph = Editor->GetFocusedGraph();
+    if (!FocusedGraph)
+    {
+        FN2CLogger::Get().LogError(TEXT("No focused graph in Blueprint Editor"));
+        return;
+    }
+
+    UBlueprint* Blueprint = Cast<UBlueprint>(FocusedGraph->GetOuter());
+    if (!Blueprint)
+    {
+        FN2CLogger::Get().LogError(TEXT("Failed to resolve Blueprint for inspect request"));
+        return;
+    }
+
+    TArray<UK2Node*> CollectedNodes;
+    FString SafeGraphName;
+    FString RootPath;
+    FString FlowDir;
+    if (!PrepareSaveContext(InEditor, CollectedNodes, SafeGraphName, RootPath, FlowDir))
+    {
+        return;
+    }
+
+    const UN2CSettings* Settings = GetDefault<UN2CSettings>();
+    if (!Settings)
+    {
+        FN2CLogger::Get().LogError(TEXT("Failed to load N2C settings for inspect blueprint workflow"));
+        return;
+    }
+
+    FN2CMcpInspectBlueprintRequest Request;
+    Request.AssetPath = Blueprint->GetPathName();
+    Request.Strands.Add(FocusedGraph->GetName());
+    Request.bRefresh = true;
+    Request.ServerBaseUrl = Settings->McpServerBaseUrl;
+    Request.InspectBlueprintEndpoint = Settings->McpInspectBlueprintEndpoint;
+
+    const FString InspectOutputPath = FPaths::Combine(FlowDir, FString::Printf(TEXT("%s_inspect_blueprint.json"), *SafeGraphName));
+
+    UN2CMcpModule::Get()->InspectBlueprintAsync(
+        Request,
+        UN2CMcpModule::FN2CMcpInspectBlueprintComplete::CreateLambda(
+            [InspectOutputPath, FlowDir, ServerBaseUrl = Settings->McpServerBaseUrl, FileEndpoint = Settings->McpInspectBlueprintFileEndpoint]
+            (bool bSuccess, const FString& ResponseBody, const FString& Error)
+            {
+                if (!bSuccess)
+                {
+                    FN2CLogger::Get().LogError(Error);
+                    return;
+                }
+
+                if (!FFileHelper::SaveStringToFile(ResponseBody, *InspectOutputPath))
+                {
+                    FN2CLogger::Get().LogError(FString::Printf(TEXT("Failed to save inspect blueprint response: %s"), *InspectOutputPath));
+                    return;
+                }
+
+                FN2CLogger::Get().Log(
+                    FString::Printf(TEXT("Inspect blueprint response saved: %s"), *InspectOutputPath),
+                    EN2CLogSeverity::Info
+                );
+
+                FNotificationInfo Info(NSLOCTEXT("NodeToCode", "InspectBlueprintSaved", "Inspect blueprint response saved"));
+                Info.bFireAndForget = true;
+                Info.FadeInDuration = 0.2f;
+                Info.FadeOutDuration = 0.5f;
+                Info.ExpireDuration = 2.0f;
+                FSlateNotificationManager::Get().AddNotification(Info);
+
+                // Parse JSON and download cached files (meta/graph/structs).
+                TSharedPtr<FJsonObject> JsonObject;
+                TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(ResponseBody);
+                if (!FJsonSerializer::Deserialize(Reader, JsonObject) || !JsonObject.IsValid())
+                {
+                    FN2CLogger::Get().LogWarning(TEXT("Inspect blueprint response is not parseable JSON; skipping file downloads."));
+                    return;
+                }
+
+                static const TArray<FString> Keys = { TEXT("meta_path"), TEXT("graph_path"), TEXT("structs_path") };
+                for (const FString& Key : Keys)
+                {
+                    FString RemotePath;
+                    if (!JsonObject->TryGetStringField(Key, RemotePath) || RemotePath.IsEmpty())
+                    {
+                        continue;
+                    }
+
+                    const FString LocalFilename = FPaths::GetCleanFilename(RemotePath);
+                    const FString LocalPath = FPaths::Combine(FlowDir, LocalFilename);
+
+                    UN2CMcpModule::Get()->DownloadInspectFileAsync(
+                        ServerBaseUrl,
+                        FileEndpoint,
+                        RemotePath,
+                        UN2CMcpModule::FN2CMcpInspectBlueprintComplete::CreateLambda(
+                            [LocalPath](bool bDownloaded, const FString& Body, const FString& DlError)
+                            {
+                                if (!bDownloaded)
+                                {
+                                    FN2CLogger::Get().LogError(DlError);
+                                    return;
+                                }
+
+                                if (!FFileHelper::SaveStringToFile(Body, *LocalPath))
+                                {
+                                    FN2CLogger::Get().LogError(FString::Printf(TEXT("Failed to save inspect file: %s"), *LocalPath));
+                                    return;
+                                }
+
+                                FN2CLogger::Get().Log(
+                                    FString::Printf(TEXT("Inspect file saved: %s"), *LocalPath),
+                                    EN2CLogSeverity::Info
+                                );
+                            }
+                        )
+                    );
+                }
+            }
+        )
+    );
+}
+
 bool FN2CEditorIntegration::ExecuteSaveParsedFlowFiles(TWeakPtr<FBlueprintEditor> InEditor)
 {
     TArray<UK2Node*> CollectedNodes;
@@ -1237,6 +1368,27 @@ void FN2CEditorIntegration::RegisterToolbarForEditor(TSharedPtr<FBlueprintEditor
         })
     );
 
+    CommandList->MapAction(
+        FN2CToolbarCommand::Get().InspectBlueprintAuraMcpCommand,
+        FExecuteAction::CreateLambda([this, WeakEditor, BlueprintName]()
+        {
+            FN2CLogger::Get().Log(
+                FString::Printf(TEXT("Inspect Blueprint (MCP API) triggered for Blueprint: %s"), *BlueprintName),
+                EN2CLogSeverity::Info
+            );
+            ExecuteInspectBlueprintAuraMCP(WeakEditor);
+        }),
+        FCanExecuteAction::CreateLambda([WeakEditor]()
+        {
+            TSharedPtr<FBlueprintEditor> Editor = WeakEditor.Pin();
+            if (!Editor.IsValid())
+            {
+                return false;
+            }
+            return Editor->GetCurrentMode() == FBlueprintEditorApplicationModes::StandardBlueprintEditorMode;
+        })
+    );
+
     // GUID :: Simple ID 알리아스가 생겨서 개별 파일로는 의미가 없어짐.
     // CommandList->MapAction(
     //     FN2CToolbarCommand::Get().SaveParsedJsonCommand,
@@ -1438,10 +1590,10 @@ void FN2CEditorIntegration::RegisterToolbarForEditor(TSharedPtr<FBlueprintEditor
                     MenuBuilder.AddMenuEntry(FN2CToolbarCommand::Get().SaveBlueprintJsonCommand);
                     MenuBuilder.AddMenuSeparator();
                     MenuBuilder.AddMenuEntry(FN2CToolbarCommand::Get().SaveParsedFlowFilesCommand);
-                    MenuBuilder.AddMenuSeparator();
+                    MenuBuilder.AddMenuEntry(FN2CToolbarCommand::Get().InspectBlueprintAuraMcpCommand);
                     MenuBuilder.AddMenuEntry(FN2CToolbarCommand::Get().OpenSaveFolderCommand);
-                    MenuBuilder.AddMenuSeparator();
                     MenuBuilder.AddMenuEntry(FN2CToolbarCommand::Get().Bp2CppMcpCommand);
+                    MenuBuilder.AddMenuSeparator();
                     MenuBuilder.AddMenuSeparator();
                     MenuBuilder.AddMenuEntry(FN2CToolbarCommand::Get().CopyParsedJsonCommand);
                     MenuBuilder.AddMenuEntry(FN2CToolbarCommand::Get().CopyFlowJsonCommand);

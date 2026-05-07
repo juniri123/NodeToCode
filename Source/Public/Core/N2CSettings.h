@@ -650,6 +650,18 @@ public:
                ToolTip = "Endpoint path for session creation (e.g., /api/session/create)"))
     FString McpSessionCreateEndpoint = "/api/session/create";
 
+    /** MCP inspect blueprint endpoint */
+    UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Node to Code | BP2CPP (MCP)",
+        meta = (DisplayName = "Inspect Blueprint Endpoint",
+               ToolTip = "Endpoint path for blueprint inspection (e.g., /api/inspect-blueprint)"))
+    FString McpInspectBlueprintEndpoint = "/api/inspect-blueprint";
+
+    /** MCP inspect blueprint file download endpoint */
+    UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Node to Code | BP2CPP (MCP)",
+        meta = (DisplayName = "Inspect Blueprint File Endpoint",
+               ToolTip = "Endpoint path for downloading inspect blueprint cached files (e.g., /api/inspect-blueprint/file)"))
+    FString McpInspectBlueprintFileEndpoint = "/api/inspect-blueprint/file";
+
     /** MCP prompt file path */
     UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Node to Code | BP2CPP (MCP)",
         meta = (DisplayName = "Prompt File",
