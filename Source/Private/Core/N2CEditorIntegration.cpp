@@ -18,10 +18,15 @@
 #include "HAL/PlatformProcess.h"
 #include "LLM/N2CLLMModule.h"
 #include "LLM/N2CLLMTypes.h"
+#include "LLM/IN2CLLMService.h"
+#include "LLM/N2CResponseParserBase.h"
 #include "Framework/Notifications/NotificationManager.h"
 #include "Misc/FileHelper.h"
 #include "Misc/PackageName.h"
 #include "Misc/Paths.h"
+#include "Dom/JsonObject.h"
+#include "Serialization/JsonSerializer.h"
+#include "Serialization/JsonWriter.h"
 #include "Widgets/Notifications/SNotificationList.h"
 #include "ISourceControlModule.h"
 #include "ISourceControlChangelist.h"
@@ -571,9 +576,47 @@ void FN2CEditorIntegration::ExecuteBp2CppUsingMCP(TWeakPtr<FBlueprintEditor> InE
         Request.ParsedFilename = FPaths::GetCleanFilename(ParsedJsonPath);
     }
 
+    // --- LLM payload: flow text + inspect graph/structs (independent of MCP server transmit) ---
+    UBlueprint* BlueprintForInspect = Cast<UBlueprint>(FocusedGraph->GetOuter());
+    if (!BlueprintForInspect)
+    {
+        FN2CLogger::Get().LogError(TEXT("Failed to resolve Blueprint for inspect file lookup (MCP)"));
+        return;
+    }
+    const FString InspectPrefix = FPaths::GetCleanFilename(BlueprintForInspect->GetPathName());
+    const FString InspectGraphPath = FPaths::Combine(FlowDir, InspectPrefix + TEXT("_graph.txt"));
+    const FString InspectStructsPath = FPaths::Combine(FlowDir, InspectPrefix + TEXT("_structs.txt"));
+
+    FString InspectGraphText;
+    if (!FFileHelper::LoadFileToString(InspectGraphText, *InspectGraphPath))
+    {
+        FN2CLogger::Get().LogError(FString::Printf(TEXT("Inspect graph file not found: %s. Run 'Inspect Blueprint (Aura MCP API)' first."), *InspectGraphPath));
+        return;
+    }
+
+    FString InspectStructsText;
+    if (!FFileHelper::LoadFileToString(InspectStructsText, *InspectStructsPath))
+    {
+        FN2CLogger::Get().LogError(FString::Printf(TEXT("Inspect structs file not found: %s. Run 'Inspect Blueprint (Aura MCP API)' first."), *InspectStructsPath));
+        return;
+    }
+
+    // FlowText is needed for LLM regardless of bMcpIncludeFlowText; load if not already populated.
+    FString FlowTextForLLM = FlowText;
+    if (FlowTextForLLM.IsEmpty() && !FFileHelper::LoadFileToString(FlowTextForLLM, *FlowTextPath))
+    {
+        FN2CLogger::Get().LogError(FString::Printf(TEXT("Flow text file not found for LLM payload: %s"), *FlowTextPath));
+        return;
+    }
+
     PendingMcpContext = MakeShared<FMcpLlmContext>();
     PendingMcpContext->BlueprintName = BlueprintName;
     PendingMcpContext->PromptText = PromptText;
+    PendingMcpContext->FlowText = FlowTextForLLM;
+    PendingMcpContext->InspectGraphText = InspectGraphText;
+    PendingMcpContext->InspectStructsText = InspectStructsText;
+    PendingMcpContext->FlowDir = FlowDir;
+    PendingMcpContext->GraphName = SafeGraphName;
 
     UN2CMcpModule::Get()->CreateSessionAsync(
         Request,
@@ -1088,7 +1131,29 @@ void FN2CEditorIntegration::SendMcpRequestToLLM(const FString& SessionId)
         return;
     }
 
-    const FString McpPayload = FString::Printf(TEXT("{\"session_id\":\"%s\"}"), *SessionId);
+    // Build LLM user-message payload (separate from MCP server transmission).
+    TSharedRef<FJsonObject> PayloadObj = MakeShared<FJsonObject>();
+    PayloadObj->SetStringField(TEXT("session_id"), SessionId);
+    if (PendingMcpContext.IsValid())
+    {
+        if (!PendingMcpContext->FlowText.IsEmpty())
+        {
+            PayloadObj->SetStringField(TEXT("flow_text"), PendingMcpContext->FlowText);
+        }
+        if (!PendingMcpContext->InspectGraphText.IsEmpty())
+        {
+            PayloadObj->SetStringField(TEXT("inspect_graph"), PendingMcpContext->InspectGraphText);
+        }
+        if (!PendingMcpContext->InspectStructsText.IsEmpty())
+        {
+            PayloadObj->SetStringField(TEXT("inspect_structs"), PendingMcpContext->InspectStructsText);
+        }
+    }
+
+    FString McpPayload;
+    TSharedRef<TJsonWriter<>> Writer = TJsonWriterFactory<>::Create(&McpPayload);
+    FJsonSerializer::Serialize(PayloadObj, Writer);
+
     const FString PromptText = PendingMcpContext ? PendingMcpContext->PromptText : FString();
 
     TScriptInterface<IN2CLLMService> ActiveService = LLMModule->GetActiveService();
@@ -1111,16 +1176,67 @@ void FN2CEditorIntegration::SendMcpRequestToLLM(const FString& SessionId)
 // LLM으로부터 MCP 관련 응답을 받는 콜백 함수
 void FN2CEditorIntegration::OnMcpLlmResponse(const FString& Response)
 {
-    // Placeholder parse flow for MCP responses
-    FN2CTranslationResponse TranslationResponse;
-    const bool bParsed = false;
-    if (bParsed)
+    // (a) Save raw response to disk next to flow/parsed outputs.
+    if (PendingMcpContext.IsValid() && !PendingMcpContext->FlowDir.IsEmpty() && !PendingMcpContext->GraphName.IsEmpty())
     {
+        const FString ResponsePath = FPaths::Combine(
+            PendingMcpContext->FlowDir,
+            FString::Printf(TEXT("%s_llm_response.txt"), *PendingMcpContext->GraphName));
+
+        if (FFileHelper::SaveStringToFile(Response, *ResponsePath, FFileHelper::EEncodingOptions::ForceUTF8WithoutBOM))
+        {
+            FN2CLogger::Get().Log(
+                FString::Printf(TEXT("Saved MCP LLM response: %s"), *ResponsePath),
+                EN2CLogSeverity::Info);
+        }
+        else
+        {
+            FN2CLogger::Get().LogError(
+                FString::Printf(TEXT("Failed to save MCP LLM response: %s"), *ResponsePath));
+        }
+    }
+
+    // (b) Parse via active service's response parser and broadcast (mirrors UN2CLLMModule::ProcessN2CJson flow).
+    UN2CLLMModule* LLMModule = UN2CLLMModule::Get();
+    if (!LLMModule)
+    {
+        FN2CLogger::Get().LogError(TEXT("LLM Module unavailable while processing MCP response"));
+        return;
+    }
+
+    FN2CTranslationResponse TranslationResponse;
+
+    TScriptInterface<IN2CLLMService> ActiveService = LLMModule->GetActiveService();
+    if (!ActiveService.GetInterface())
+    {
+        FN2CLogger::Get().LogError(TEXT("No active LLM service for MCP response parsing"));
+        LLMModule->OnTranslationResponseReceived.Broadcast(TranslationResponse, false);
+        return;
+    }
+
+    UN2CResponseParserBase* Parser = ActiveService->GetResponseParser();
+    if (!Parser)
+    {
+        FN2CLogger::Get().LogError(TEXT("No response parser available for MCP response"));
+        LLMModule->OnTranslationResponseReceived.Broadcast(TranslationResponse, false);
+        return;
+    }
+
+    if (Parser->ParseLLMResponse(Response, TranslationResponse))
+    {
+        const FN2CBlueprint& Blueprint = FN2CNodeTranslator::Get().GetN2CBlueprint();
+        if (LLMModule->SaveTranslationToDisk(TranslationResponse, Blueprint))
+        {
+            FN2CLogger::Get().Log(TEXT("Successfully saved MCP translation to disk"), EN2CLogSeverity::Info);
+        }
+
+        LLMModule->OnTranslationResponseReceived.Broadcast(TranslationResponse, true);
         FN2CLogger::Get().Log(TEXT("Successfully parsed MCP LLM response"), EN2CLogSeverity::Info);
     }
     else
     {
-        FN2CLogger::Get().LogWarning(TEXT("MCP response parser not implemented"));
+        FN2CLogger::Get().LogError(TEXT("Failed to parse MCP LLM response"));
+        LLMModule->OnTranslationResponseReceived.Broadcast(TranslationResponse, false);
     }
 }
 #pragma endregion

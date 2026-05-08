@@ -12,13 +12,29 @@
 UENUM(BlueprintType)
 enum class EN2COpenAIModel : uint8
 {
+    // GPT-5 family
+    GPT_5_5                 UMETA(DisplayName = "GPT-5.5", Value = "gpt-5.5"),
+    GPT_5_4                 UMETA(DisplayName = "GPT-5.4", Value = "gpt-5.4"),
+    GPT_5_4_Mini            UMETA(DisplayName = "GPT-5.4 Mini", Value = "gpt-5.4-mini"),
+    GPT_5_4_Nano            UMETA(DisplayName = "GPT-5.4 Nano", Value = "gpt-5.4-nano"),
+    GPT_5_2                 UMETA(DisplayName = "GPT-5.2", Value = "gpt-5.2"),
+    GPT_5_1                 UMETA(DisplayName = "GPT-5.1", Value = "gpt-5.1"),
+    GPT_5                   UMETA(DisplayName = "GPT-5", Value = "gpt-5"),
+
+    // reasoning models
     GPT_o4_mini             UMETA(DisplayName = "o4 Mini", Value = "o4-mini"),
-    GPT_4_1                 UMETA(DisplayName = "GPT-4.1", Value = "gpt-4.1"),
     GPT_o3                  UMETA(DisplayName = "o3", Value = "o3"),
     GPT_o3_mini             UMETA(DisplayName = "o3 Mini", Value = "o3-mini"),
     GPT_o1                  UMETA(DisplayName = "o1", Value = "o1"),
     GPT_o1_Preview          UMETA(DisplayName = "o1 Preview", Value = "o1-preview-2024-09-12"),
     GPT_o1_Mini             UMETA(DisplayName = "o1 Mini", Value = "o1-mini-2024-09-12"),
+
+    // GPT-4.x
+    GPT_4_1                 UMETA(DisplayName = "GPT-4.1", Value = "gpt-4.1"),
+    GPT_4_1_Mini            UMETA(DisplayName = "GPT-4.1 Mini", Value = "gpt-4.1-mini"),
+    GPT_4_1_Nano            UMETA(DisplayName = "GPT-4.1 Nano", Value = "gpt-4.1-nano"),
+
+    // GPT-4o legacy
     GPT4o_2024_08_06        UMETA(DisplayName = "GPT-4o", Value = "gpt-4o-2024-08-06"),
     GPT4o_Mini_2024_07_18   UMETA(DisplayName = "GPT-4o Mini", Value = "gpt-4o-mini-2024-07-18"),
 };

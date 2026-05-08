@@ -44,26 +44,62 @@ FString FN2CLLMModelUtils::GetOpenAIModelValue(EN2COpenAIModel Model)
 {
     switch (Model)
     {
-        case EN2COpenAIModel::GPT4o_2024_08_06:
-            return TEXT("gpt-4o-2024-08-06");
-        case EN2COpenAIModel::GPT4o_Mini_2024_07_18:
-            return TEXT("gpt-4o-mini-2024-07-18");
-        case EN2COpenAIModel::GPT_4_1:
-            return TEXT("gpt-4.1");
-        case EN2COpenAIModel::GPT_o1:
-            return TEXT("o1");
-        case EN2COpenAIModel::GPT_o3:
-            return TEXT("o3");
-        case EN2COpenAIModel::GPT_o3_mini:
-            return TEXT("o3-mini");
-        case EN2COpenAIModel::GPT_o4_mini:
-            return TEXT("o4-mini");
-        case EN2COpenAIModel::GPT_o1_Preview:
-            return TEXT("o1-preview-2024-09-12");
-        case EN2COpenAIModel::GPT_o1_Mini:
-            return TEXT("o1-mini-2024-09-12");
-        default:
-            return TEXT("gpt-4o-2024-08-06");
+    case EN2COpenAIModel::GPT_5_5:
+        return TEXT("gpt-5.5");
+
+    case EN2COpenAIModel::GPT_5_4:
+        return TEXT("gpt-5.4");
+
+    case EN2COpenAIModel::GPT_5_4_Mini:
+        return TEXT("gpt-5.4-mini");
+
+    case EN2COpenAIModel::GPT_5_4_Nano:
+        return TEXT("gpt-5.4-nano");
+
+    case EN2COpenAIModel::GPT_5_2:
+        return TEXT("gpt-5.2");
+
+    case EN2COpenAIModel::GPT_5_1:
+        return TEXT("gpt-5.1");
+
+    case EN2COpenAIModel::GPT_5:
+        return TEXT("gpt-5");
+
+    case EN2COpenAIModel::GPT4o_2024_08_06:
+        return TEXT("gpt-4o-2024-08-06");
+
+    case EN2COpenAIModel::GPT4o_Mini_2024_07_18:
+        return TEXT("gpt-4o-mini-2024-07-18");
+
+    case EN2COpenAIModel::GPT_4_1:
+        return TEXT("gpt-4.1");
+
+    case EN2COpenAIModel::GPT_4_1_Mini:
+        return TEXT("gpt-4.1-mini");
+
+    case EN2COpenAIModel::GPT_4_1_Nano:
+        return TEXT("gpt-4.1-nano");
+
+    case EN2COpenAIModel::GPT_o1:
+        return TEXT("o1");
+
+    case EN2COpenAIModel::GPT_o1_Preview:
+        return TEXT("o1-preview-2024-09-12");
+
+    case EN2COpenAIModel::GPT_o1_Mini:
+        return TEXT("o1-mini-2024-09-12");
+
+    case EN2COpenAIModel::GPT_o3:
+        return TEXT("o3");
+
+    case EN2COpenAIModel::GPT_o3_mini:
+        return TEXT("o3-mini");
+
+    case EN2COpenAIModel::GPT_o4_mini:
+        return TEXT("o4-mini");
+
+    default:
+        return TEXT("gpt-5.4-mini");
     }
 }
 

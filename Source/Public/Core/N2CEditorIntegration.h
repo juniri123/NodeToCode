@@ -101,6 +101,11 @@ private:
     {
         FString BlueprintName;
         FString PromptText;
+        FString FlowText;
+        FString InspectGraphText;
+        FString InspectStructsText;
+        FString FlowDir;
+        FString GraphName;
     };
 
     void OnMcpSessionComplete(bool bSuccess, const FString& SessionId, const FString& Error);

@@ -99,14 +99,27 @@ void UN2CLLMPayloadBuilder::SetMaxTokens(int32 Value)
             }
             break;
         case EN2CLLMProvider::OpenAI:
-            // OpenAI o1, o3, and o4 models use max_completion_tokens instead of max_tokens
-            if (ModelName.StartsWith(TEXT("o1")) || ModelName.StartsWith(TEXT("o3")) || ModelName.StartsWith(TEXT("o4")))
+            // // OpenAI o1, o3, and o4 models use max_completion_tokens instead of max_tokens
+            // if (ModelName.StartsWith(TEXT("o1")) || ModelName.StartsWith(TEXT("o3")) || ModelName.StartsWith(TEXT("o4")))
+            // {
+            //     RootObject->SetNumberField(TEXT("max_completion_tokens"), Value);
+            // }
+            // else
+            // {
+            //     RootObject->SetNumberField(TEXT("max_tokens"), Value);
+            // }
             {
-                RootObject->SetNumberField(TEXT("max_completion_tokens"), Value);
-            }
-            else
-            {
-                RootObject->SetNumberField(TEXT("max_tokens"), Value);
+                const bool bUseMaxCompletionTokens =
+                    ModelName.StartsWith(TEXT("o1")) ||
+                    ModelName.StartsWith(TEXT("o3")) ||
+                    ModelName.StartsWith(TEXT("o4")) ||
+                    ModelName.StartsWith(TEXT("gpt-5")) ||
+                    ModelName.StartsWith(TEXT("gpt-4.1"));
+
+                RootObject->SetNumberField(
+                    bUseMaxCompletionTokens ? TEXT("max_completion_tokens") : TEXT("max_tokens"),
+                    Value
+                );        
             }
             break;
         case EN2CLLMProvider::LMStudio:

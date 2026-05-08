@@ -20,7 +20,7 @@ void UN2COpenAIService::GetConfiguration(
     OutAuthToken = Config.ApiKey;
     
     // Find matching model enum for system prompt support check
-    for (int32 i = 0; i < static_cast<int32>(EN2COpenAIModel::GPT_o1_Mini) + 1; i++)
+    for (int32 i = 0; i < static_cast<int32>(EN2COpenAIModel::GPT4o_Mini_2024_07_18) + 1; i++)
     {
         EN2COpenAIModel Model = static_cast<EN2COpenAIModel>(i);
         if (FN2CLLMModelUtils::GetOpenAIModelValue(Model) == Config.Model)
@@ -50,7 +50,7 @@ FString UN2COpenAIService::FormatRequestPayload(const FString& UserMessage, cons
 {
     // Check if model supports system prompts
     bool bSupportsSystemPrompts = false;
-    for (int32 i = 0; i < static_cast<int32>(EN2COpenAIModel::GPT_o1_Mini) + 1; i++)
+    for (int32 i = 0; i < static_cast<int32>(EN2COpenAIModel::GPT4o_Mini_2024_07_18) + 1; i++)
     {
         EN2COpenAIModel Model = static_cast<EN2COpenAIModel>(i);
         if (FN2CLLMModelUtils::GetOpenAIModelValue(Model) == Config.Model)
@@ -68,7 +68,11 @@ FString UN2COpenAIService::FormatRequestPayload(const FString& UserMessage, cons
     // Set common parameters
     // Note: Temperature is not supported for o1/o3 models, but the payload builder will handle this
     PayloadBuilder->SetTemperature(0.0f);
-    PayloadBuilder->SetMaxTokens(8192);
+    // Note: For o-series reasoning models (o1/o3/o4-mini), this value maps to
+    // max_completion_tokens which is shared between reasoning_tokens and visible output.
+    // 8192 was too low — reasoning alone consumed the entire budget, leaving 0 for content
+    // (finish_reason="length", empty content). Bumped to 32768 for headroom.
+    PayloadBuilder->SetMaxTokens(128000);
     
     // Add JSON response format for models that support it
     // The payload builder will handle the differences between model types
