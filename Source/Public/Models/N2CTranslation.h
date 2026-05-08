@@ -75,6 +75,10 @@ struct FN2CTranslationResponse
 {
     GENERATED_BODY()
 
+    /** Blueprint name echoed back by the LLM (from request context). Used as fallback when Blueprint.Metadata.Name is empty. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Node to Code")
+    FString BlueprintName;
+
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Node to Code")
     TArray<FN2CGraphTranslation> Graphs;
 

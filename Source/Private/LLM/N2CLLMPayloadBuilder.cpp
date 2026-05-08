@@ -42,15 +42,22 @@ void UN2CLLMPayloadBuilder::SetTemperature(float Value)
             }
             break;
         case EN2CLLMProvider::OpenAI:
-            // OpenAI o1, o3, and o4 models don't support temperature
-            if (ModelName.StartsWith(TEXT("o1")) || ModelName.StartsWith(TEXT("o3")) || ModelName.StartsWith(TEXT("o4")))
             {
-                // Skip setting temperature for o1 and o3 models
-                FN2CLogger::Get().Log(TEXT("Temperature parameter not supported for o1/o3 models, skipping"), EN2CLogSeverity::Debug);
-            }
-            else
-            {
-                RootObject->SetNumberField(TEXT("temperature"), Value);
+                // OpenAI reasoning models (o1*, o3*, o4*, gpt-5*) only accept the default temperature
+                static const TArray<FString> ReasoningPrefixes = { TEXT("o1"), TEXT("o3"), TEXT("o4"), TEXT("gpt-5.5") };
+                const bool bIsReasoningModel = ReasoningPrefixes.ContainsByPredicate([this](const FString& Prefix)
+                {
+                    return ModelName.StartsWith(Prefix, ESearchCase::IgnoreCase);
+                });
+
+                if (bIsReasoningModel)
+                {
+                    FN2CLogger::Get().Log(TEXT("Temperature parameter not supported for OpenAI reasoning models, skipping"), EN2CLogSeverity::Debug);
+                }
+                else
+                {
+                    RootObject->SetNumberField(TEXT("temperature"), Value);
+                }
             }
             break;
         case EN2CLLMProvider::LMStudio:
@@ -460,6 +467,9 @@ TSharedPtr<FJsonObject> UN2CLLMPayloadBuilder::GetN2CResponseSchema()
       {
         "type": "object",
         "properties": {
+          "blueprint_name": {
+            "type": "string"
+          },
           "graphs": {
             "type": "array",
             "items": {
@@ -503,6 +513,7 @@ TSharedPtr<FJsonObject> UN2CLLMPayloadBuilder::GetN2CResponseSchema()
           }
         },
         "required": [
+          "blueprint_name",
           "graphs"
         ]
       }

@@ -82,6 +82,12 @@ bool UN2CResponseParserBase::ParseLLMResponse(
         return false;
     }
 
+    // Extract blueprint_name (required by schema; echoed from request context)
+    if (!JsonObject->TryGetStringField(TEXT("blueprint_name"), OutResponse.BlueprintName))
+    {
+        OutResponse.BlueprintName.Reset();
+    }
+
     // Process each graph
     OutResponse.Graphs.Empty();
     for (const auto& GraphValue : *GraphsArray)

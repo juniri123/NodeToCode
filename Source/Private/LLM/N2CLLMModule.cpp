@@ -15,6 +15,7 @@
 #include "LLM/Providers/N2COpenAIService.h"
 #include "LLM/Providers/N2COllamaService.h"
 #include "Utils/N2CLogger.h"
+#include "HAL/FileManager.h"
 
 UN2CLLMModule* UN2CLLMModule::Get()
 {
@@ -318,20 +319,50 @@ void UN2CLLMModule::ClearPendingParsedJson()
 // N2C 확장: Flow 파일 저장을 포함한 저장 처리
 bool UN2CLLMModule::SaveTranslationToDisk(const FN2CTranslationResponse& Response, const FN2CBlueprint& Blueprint)
 {
-    // Get blueprint name from metadata
+    // Get blueprint name from metadata, fallback to LLM-echoed name, then UnknownBlueprint
     FString BlueprintName = Blueprint.Metadata.Name;
+    if (BlueprintName.IsEmpty())
+    {
+        BlueprintName = Response.BlueprintName;
+    }
     if (BlueprintName.IsEmpty())
     {
         BlueprintName = TEXT("UnknownBlueprint");
     }
-    
+
     // Generate root path for this translation
     FString RootPath = LatestTranslationPath;
     if (RootPath.IsEmpty())
     {
         RootPath = GenerateTranslationRootPath(BlueprintName);
     }
-    
+    else if (BlueprintName != TEXT("UnknownBlueprint"))
+    {
+        // If the request-time path was created under UnknownBlueprint and we now have a real name,
+        // rename the existing folder so the final output matches the BP name.
+        const FString CurrentFolder = FPaths::GetCleanFilename(RootPath);
+        if (CurrentFolder.StartsWith(TEXT("UnknownBlueprint")))
+        {
+            const FString ParentDir = FPaths::GetPath(RootPath);
+            FString NewFolder = CurrentFolder;
+            NewFolder.ReplaceInline(TEXT("UnknownBlueprint"), *BlueprintName);
+            const FString NewPath = FPaths::Combine(ParentDir, NewFolder);
+            if (IFileManager::Get().Move(*NewPath, *RootPath))
+            {
+                RootPath = NewPath;
+                LatestTranslationPath = NewPath;
+                FN2CLogger::Get().Log(
+                    FString::Printf(TEXT("Renamed translation folder to: %s"), *RootPath),
+                    EN2CLogSeverity::Info);
+            }
+            else
+            {
+                FN2CLogger::Get().LogWarning(
+                    FString::Printf(TEXT("Failed to rename UnknownBlueprint folder to: %s"), *NewPath));
+            }
+        }
+    }
+
     // Ensure the directory exists
     if (!EnsureDirectoryExists(RootPath))
     {
@@ -343,10 +374,19 @@ bool UN2CLLMModule::SaveTranslationToDisk(const FN2CTranslationResponse& Respons
     LatestTranslationPath = RootPath;
 
     ClearPendingBlueprintChangeList();
-    
+
+    // Sub-folder for all LLM-produced artifacts (BP JSON, translation JSON, generated graph code).
+    // Keeps the parent folder clean (flow.txt, parsed.json, structs.txt remain at root).
+    const FString LlmResponseDir = FPaths::Combine(RootPath, TEXT("llm_response"));
+    if (!EnsureDirectoryExists(LlmResponseDir))
+    {
+        FN2CLogger::Get().LogError(FString::Printf(TEXT("Failed to create llm_response directory: %s"), *LlmResponseDir));
+        return false;
+    }
+
     // Save the Blueprint JSON (pretty-printed)
     FString JsonFileName = FString::Printf(TEXT("N2C_BP_%s.json"), *FPaths::GetBaseFilename(RootPath));
-    FString JsonFilePath = FPaths::Combine(RootPath, JsonFileName);
+    FString JsonFilePath = FPaths::Combine(LlmResponseDir, JsonFileName);
     
     // Serialize the Blueprint to JSON with pretty printing
     FN2CSerializer::SetPrettyPrint(true);
@@ -360,7 +400,7 @@ bool UN2CLLMModule::SaveTranslationToDisk(const FN2CTranslationResponse& Respons
     
     // Save minified version of the Blueprint JSON
     FString MinifiedJsonFileName = FString::Printf(TEXT("N2C_BP_Minified_%s.json"), *FPaths::GetBaseFilename(RootPath));
-    FString MinifiedJsonFilePath = FPaths::Combine(RootPath, MinifiedJsonFileName);
+    FString MinifiedJsonFilePath = FPaths::Combine(LlmResponseDir, MinifiedJsonFileName);
     
     // Serialize the Blueprint to JSON without pretty printing
     FN2CSerializer::SetPrettyPrint(false);
@@ -374,7 +414,7 @@ bool UN2CLLMModule::SaveTranslationToDisk(const FN2CTranslationResponse& Respons
     
     // Save the raw LLM translation response JSON
     FString TranslationJsonFileName = FString::Printf(TEXT("N2C_Translation_%s.json"), *FPaths::GetBaseFilename(RootPath));
-    FString TranslationJsonFilePath = FPaths::Combine(RootPath, TranslationJsonFileName);
+    FString TranslationJsonFilePath = FPaths::Combine(LlmResponseDir, TranslationJsonFileName);
     
     // Serialize the Translation response to JSON
     TSharedPtr<FJsonObject> TranslationJsonObject = MakeShared<FJsonObject>();
@@ -433,8 +473,8 @@ bool UN2CLLMModule::SaveTranslationToDisk(const FN2CTranslationResponse& Respons
             continue;
         }
         
-        // Create directory for this graph
-        FString GraphDir = FPaths::Combine(RootPath, Graph.GraphName);
+        // Create directory for this graph (under llm_response/)
+        FString GraphDir = FPaths::Combine(LlmResponseDir, Graph.GraphName);
         if (!EnsureDirectoryExists(GraphDir))
         {
             FN2CLogger::Get().LogWarning(FString::Printf(TEXT("Failed to create graph directory: %s"), *GraphDir));
@@ -502,9 +542,16 @@ bool UN2CLLMModule::SaveRequestJsonToDisk(const FString& JsonInput)
 
     LatestTranslationPath = RootPath;
 
-    // Save the raw request JSON as-is
+    // Save the raw request JSON under llm_response/ alongside other LLM artifacts.
+    const FString LlmResponseDir = FPaths::Combine(RootPath, TEXT("llm_response"));
+    if (!EnsureDirectoryExists(LlmResponseDir))
+    {
+        FN2CLogger::Get().LogWarning(FString::Printf(TEXT("Failed to create llm_response directory: %s"), *LlmResponseDir));
+        return false;
+    }
+
     const FString RequestJsonFileName = TEXT("N2C_Request.json");
-    const FString RequestJsonFilePath = FPaths::Combine(RootPath, RequestJsonFileName);
+    const FString RequestJsonFilePath = FPaths::Combine(LlmResponseDir, RequestJsonFileName);
 
     if (!FFileHelper::SaveStringToFile(JsonInput, *RequestJsonFilePath))
     {

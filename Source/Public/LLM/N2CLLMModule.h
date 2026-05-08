@@ -64,6 +64,10 @@ public:
     UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Node to Code | LLM Module")
     FString GetLatestTranslationPath() const { return LatestTranslationPath; }
 
+    /** Override the translation root path (e.g. to align with the MCP flow directory). */
+    UFUNCTION(BlueprintCallable, Category = "Node to Code | LLM Module")
+    void SetLatestTranslationPath(const FString& InPath) { LatestTranslationPath = InPath; }
+
     /** Open the latest translation folder in file explorer */
     UFUNCTION(BlueprintCallable, Category = "Node to Code | LLM Module")
     void OpenTranslationFolder(bool& Success);

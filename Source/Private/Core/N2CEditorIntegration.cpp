@@ -14,6 +14,7 @@
 #include "Core/N2CSettings.h"
 #include "Core/N2CToolbarCommand.h"
 #include "MCP/N2CMcpModule.h"
+#include "HAL/FileManager.h"
 #include "HAL/PlatformFileManager.h"
 #include "HAL/PlatformProcess.h"
 #include "LLM/N2CLLMModule.h"
@@ -584,8 +585,9 @@ void FN2CEditorIntegration::ExecuteBp2CppUsingMCP(TWeakPtr<FBlueprintEditor> InE
         return;
     }
     const FString InspectPrefix = FPaths::GetCleanFilename(BlueprintForInspect->GetPathName());
-    const FString InspectGraphPath = FPaths::Combine(FlowDir, InspectPrefix + TEXT("_graph.txt"));
-    const FString InspectStructsPath = FPaths::Combine(FlowDir, InspectPrefix + TEXT("_structs.txt"));
+    const FString McpToolDir = FPaths::Combine(FlowDir, TEXT("mcp_tool_response"));
+    const FString InspectGraphPath = FPaths::Combine(McpToolDir, InspectPrefix + TEXT("_graph.txt"));
+    const FString InspectStructsPath = FPaths::Combine(McpToolDir, InspectPrefix + TEXT("_structs.txt"));
 
     FString InspectGraphText;
     if (!FFileHelper::LoadFileToString(InspectGraphText, *InspectGraphPath))
@@ -617,6 +619,10 @@ void FN2CEditorIntegration::ExecuteBp2CppUsingMCP(TWeakPtr<FBlueprintEditor> InE
     PendingMcpContext->InspectStructsText = InspectStructsText;
     PendingMcpContext->FlowDir = FlowDir;
     PendingMcpContext->GraphName = SafeGraphName;
+
+    // Unify storage: route SaveRequestJsonToDisk/SaveTranslationToDisk into the same per-graph folder
+    // so request, llm_response, and translated outputs sit together in BP_Graph_CL... directory.
+    LLMModule->SetLatestTranslationPath(FlowDir);
 
     UN2CMcpModule::Get()->CreateSessionAsync(
         Request,
@@ -673,12 +679,15 @@ void FN2CEditorIntegration::ExecuteInspectBlueprintAuraMCP(TWeakPtr<FBlueprintEd
     Request.ServerBaseUrl = Settings->McpServerBaseUrl;
     Request.InspectBlueprintEndpoint = Settings->McpInspectBlueprintEndpoint;
 
-    const FString InspectOutputPath = FPaths::Combine(FlowDir, FString::Printf(TEXT("%s_inspect_blueprint.json"), *SafeGraphName));
+    // MCP tool outputs (inspect_blueprint, meta/graph/structs) are kept under mcp_tool_response/.
+    const FString McpToolDir = FPaths::Combine(FlowDir, TEXT("mcp_tool_response"));
+    IFileManager::Get().MakeDirectory(*McpToolDir, /*Tree=*/true);
+    const FString InspectOutputPath = FPaths::Combine(McpToolDir, FString::Printf(TEXT("%s_inspect_blueprint.json"), *SafeGraphName));
 
     UN2CMcpModule::Get()->InspectBlueprintAsync(
         Request,
         UN2CMcpModule::FN2CMcpInspectBlueprintComplete::CreateLambda(
-            [InspectOutputPath, FlowDir, ServerBaseUrl = Settings->McpServerBaseUrl, FileEndpoint = Settings->McpInspectBlueprintFileEndpoint]
+            [InspectOutputPath, McpToolDir, ServerBaseUrl = Settings->McpServerBaseUrl, FileEndpoint = Settings->McpInspectBlueprintFileEndpoint]
             (bool bSuccess, const FString& ResponseBody, const FString& Error)
             {
                 if (!bSuccess)
@@ -724,7 +733,7 @@ void FN2CEditorIntegration::ExecuteInspectBlueprintAuraMCP(TWeakPtr<FBlueprintEd
                     }
 
                     const FString LocalFilename = FPaths::GetCleanFilename(RemotePath);
-                    const FString LocalPath = FPaths::Combine(FlowDir, LocalFilename);
+                    const FString LocalPath = FPaths::Combine(McpToolDir, LocalFilename);
 
                     UN2CMcpModule::Get()->DownloadInspectFileAsync(
                         ServerBaseUrl,
@@ -1136,6 +1145,16 @@ void FN2CEditorIntegration::SendMcpRequestToLLM(const FString& SessionId)
     PayloadObj->SetStringField(TEXT("session_id"), SessionId);
     if (PendingMcpContext.IsValid())
     {
+        // Provide identity fields so the response schema can echo blueprint_name back
+        // (consumed by N2CResponseParserBase / SaveTranslationToDisk fallback).
+        if (!PendingMcpContext->BlueprintName.IsEmpty())
+        {
+            PayloadObj->SetStringField(TEXT("blueprint_name"), PendingMcpContext->BlueprintName);
+        }
+        if (!PendingMcpContext->GraphName.IsEmpty())
+        {
+            PayloadObj->SetStringField(TEXT("graph_name"), PendingMcpContext->GraphName);
+        }
         if (!PendingMcpContext->FlowText.IsEmpty())
         {
             PayloadObj->SetStringField(TEXT("flow_text"), PendingMcpContext->FlowText);
@@ -1179,8 +1198,11 @@ void FN2CEditorIntegration::OnMcpLlmResponse(const FString& Response)
     // (a) Save raw response to disk next to flow/parsed outputs.
     if (PendingMcpContext.IsValid() && !PendingMcpContext->FlowDir.IsEmpty() && !PendingMcpContext->GraphName.IsEmpty())
     {
+        // Mirror SaveTranslationToDisk: store all LLM artifacts under llm_response/.
+        const FString LlmResponseDir = FPaths::Combine(PendingMcpContext->FlowDir, TEXT("llm_response"));
+        IFileManager::Get().MakeDirectory(*LlmResponseDir, /*Tree=*/true);
         const FString ResponsePath = FPaths::Combine(
-            PendingMcpContext->FlowDir,
+            LlmResponseDir,
             FString::Printf(TEXT("%s_llm_response.txt"), *PendingMcpContext->GraphName));
 
         if (FFileHelper::SaveStringToFile(Response, *ResponsePath, FFileHelper::EEncodingOptions::ForceUTF8WithoutBOM))
