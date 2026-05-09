@@ -113,6 +113,9 @@ private:
     void OnMcpLlmResponse(const FString& Response);
 
     TSharedPtr<FMcpLlmContext> PendingMcpContext;
+
+    /** Long-lived progress notification shown while the LLM request is in flight. */
+    TSharedPtr<class SNotificationItem> PendingLlmProgressNotification;
     #pragma endregion
 
 };

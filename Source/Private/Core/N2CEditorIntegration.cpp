@@ -1182,6 +1182,33 @@ void FN2CEditorIntegration::SendMcpRequestToLLM(const FString& SessionId)
         return;
     }
 
+    // Show in-flight progress notification (cleared in OnMcpLlmResponse).
+    {
+        const FText ProgressText = FText::Format(
+            NSLOCTEXT("NodeToCode", "LlmInFlight", "Translating Blueprint to C++ ({0})..."),
+            FText::FromString(PendingMcpContext.IsValid() ? PendingMcpContext->GraphName : TEXT("")));
+
+        FNotificationInfo Info(ProgressText);
+        Info.bFireAndForget = false;
+        Info.bUseThrobber = true;
+        Info.bUseSuccessFailIcons = true;
+        Info.FadeInDuration = 0.2f;
+        Info.FadeOutDuration = 0.5f;
+        Info.ExpireDuration = 0.0f;
+
+        if (PendingLlmProgressNotification.IsValid())
+        {
+            PendingLlmProgressNotification->SetCompletionState(SNotificationItem::CS_None);
+            PendingLlmProgressNotification->ExpireAndFadeout();
+            PendingLlmProgressNotification.Reset();
+        }
+        PendingLlmProgressNotification = FSlateNotificationManager::Get().AddNotification(Info);
+        if (PendingLlmProgressNotification.IsValid())
+        {
+            PendingLlmProgressNotification->SetCompletionState(SNotificationItem::CS_Pending);
+        }
+    }
+
     ActiveService->SendRequest(
         McpPayload,
         PromptText,
@@ -1195,6 +1222,20 @@ void FN2CEditorIntegration::SendMcpRequestToLLM(const FString& SessionId)
 // LLM으로부터 MCP 관련 응답을 받는 콜백 함수
 void FN2CEditorIntegration::OnMcpLlmResponse(const FString& Response)
 {
+    // Finalize the in-flight progress notification.
+    if (PendingLlmProgressNotification.IsValid())
+    {
+        const bool bHasResponse = !Response.IsEmpty();
+        PendingLlmProgressNotification->SetText(
+            bHasResponse
+                ? NSLOCTEXT("NodeToCode", "LlmDone", "Blueprint to C++ translation complete")
+                : NSLOCTEXT("NodeToCode", "LlmFailed", "Blueprint to C++ translation failed"));
+        PendingLlmProgressNotification->SetCompletionState(
+            bHasResponse ? SNotificationItem::CS_Success : SNotificationItem::CS_Fail);
+        PendingLlmProgressNotification->ExpireAndFadeout();
+        PendingLlmProgressNotification.Reset();
+    }
+
     // (a) Save raw response to disk next to flow/parsed outputs.
     if (PendingMcpContext.IsValid() && !PendingMcpContext->FlowDir.IsEmpty() && !PendingMcpContext->GraphName.IsEmpty())
     {
