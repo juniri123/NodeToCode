@@ -18,6 +18,9 @@ public:
     
     /** Destructor */
     virtual ~FN2CFunctionCallProcessor() {}
+
+    /** Get the MCP graph text label for function call nodes. */
+    virtual FString GetGraphTextLabel(UK2Node* Node) const override;
     
 protected:
     /**

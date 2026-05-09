@@ -26,6 +26,19 @@ bool FN2CBaseNodeProcessor::Process(UK2Node* Node, FN2CNodeDefinition& OutNodeDe
     return true;
 }
 
+FString FN2CBaseNodeProcessor::GetGraphTextLabel(UK2Node* Node) const
+{
+    if (!Node)
+    {
+        return TEXT("Unknown");
+    }
+
+    const FString Title = Node->GetNodeTitle(ENodeTitleType::ListView).ToString();
+    return Title.IsEmpty()
+        ? Node->GetClass()->GetName()
+        : Title;
+}
+
 void FN2CBaseNodeProcessor::ExtractNodeProperties(UK2Node* Node, FN2CNodeDefinition& OutNodeDef)
 {
     // Base implementation does nothing - to be overridden by subclasses

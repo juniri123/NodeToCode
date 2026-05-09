@@ -32,6 +32,7 @@ public:
     #pragma region ODS
     TSharedPtr<FUICommandInfo> SaveBlueprintJsonCommand;
     TSharedPtr<FUICommandInfo> SaveParsedFlowFilesCommand;
+    TSharedPtr<FUICommandInfo> SaveMcpGraphTextCommand;
     TSharedPtr<FUICommandInfo> SaveParsedJsonCommand;
     TSharedPtr<FUICommandInfo> SaveFlowJsonCommand;
     TSharedPtr<FUICommandInfo> SaveFlowTextCommand;
@@ -44,6 +45,7 @@ public:
 
     static const FName CommandName_SaveBlueprintJson;
     static const FName CommandName_SaveParsedFlowFiles;
+    static const FName CommandName_SaveMcpGraphText;
     static const FName CommandName_SaveParsedJson;
     static const FName CommandName_SaveFlowJson;
     static const FName CommandName_SaveFlowText;
@@ -56,6 +58,7 @@ public:
 
     static const FText CommandLabel_SaveBlueprintJson;
     static const FText CommandLabel_SaveParsedFlowFiles;
+    static const FText CommandLabel_SaveMcpGraphText;
     static const FText CommandLabel_SaveParsedJson;
     static const FText CommandLabel_SaveFlowJson;
     static const FText CommandLabel_SaveFlowText;
@@ -68,6 +71,7 @@ public:
     
     static const FText CommandTooltip_SaveBlueprintJson;
     static const FText CommandTooltip_SaveParsedFlowFiles;
+    static const FText CommandTooltip_SaveMcpGraphText;
     static const FText CommandTooltip_SaveParsedJson;
     static const FText CommandTooltip_SaveFlowJson;
     static const FText CommandTooltip_SaveFlowText;

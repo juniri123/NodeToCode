@@ -20,6 +20,9 @@ public:
     
     /** Destructor */
     virtual ~FN2CFunctionEntryProcessor() {}
+
+    /** Get the MCP graph text label for function entry/result and macro nodes. */
+    virtual FString GetGraphTextLabel(UK2Node* Node) const override;
     
 protected:
     /**

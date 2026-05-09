@@ -20,6 +20,9 @@ public:
     
     /** Destructor */
     virtual ~FN2CVariableProcessor() {}
+
+    /** Get the MCP graph text label for variable nodes. */
+    virtual FString GetGraphTextLabel(UK2Node* Node) const override;
     
 protected:
     /**

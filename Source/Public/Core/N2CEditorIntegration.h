@@ -9,6 +9,8 @@
 #include "Utils/N2CLogger.h"
 #include "LLM/IN2CLLMService.h"
 
+class UK2Node;
+
 /**
  * @class FN2CEditorIntegration
  * @brief Handles integration with the Blueprint Editor
@@ -63,6 +65,12 @@ private:
 
     /** Execute save parsed/flow files for a specific editor */
     bool ExecuteSaveParsedFlowFiles(TWeakPtr<FBlueprintEditor> InEditor);
+
+    /** Execute save MCP-style graph text file for a specific editor */
+    void ExecuteSaveMcpGraphText(TWeakPtr<FBlueprintEditor> InEditor);
+
+    /** Save independent MCP-style graph text for a specific collected graph */
+    bool SaveMcpGraphTextFile(const TArray<UK2Node*>& CollectedNodes, const FString& SafeGraphName, const FString& FlowDir) const;
 
     /** Execute save parsed JSON file for a specific editor */
     void ExecuteSaveParsedJson(TWeakPtr<FBlueprintEditor> InEditor);

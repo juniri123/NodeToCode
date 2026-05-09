@@ -20,6 +20,7 @@ const FText FN2CToolbarCommand::CommandTooltip_CopyJson = NSLOCTEXT("NodeToCode"
 #pragma region ODS
 const FName FN2CToolbarCommand::CommandName_SaveBlueprintJson = TEXT("NodeToCode_SaveBlueprintJson");
 const FName FN2CToolbarCommand::CommandName_SaveParsedFlowFiles = TEXT("NodeToCode_SaveParsedFlowFiles");
+const FName FN2CToolbarCommand::CommandName_SaveMcpGraphText = TEXT("NodeToCode_SaveMcpGraphText");
 const FName FN2CToolbarCommand::CommandName_SaveParsedJson = TEXT("NodeToCode_SaveParsedJson");
 const FName FN2CToolbarCommand::CommandName_SaveFlowJson = TEXT("NodeToCode_SaveFlowJson");
 const FName FN2CToolbarCommand::CommandName_SaveFlowText = TEXT("NodeToCode_SaveFlowText");
@@ -32,6 +33,7 @@ const FName FN2CToolbarCommand::CommandName_CopyParsedJson = TEXT("NodeToCode_Co
 const FText FN2CToolbarCommand::CommandLabel_SaveBlueprintJson = NSLOCTEXT("NodeToCode", "SaveBlueprintJson", "Save Blueprint JSON");
 
 const FText FN2CToolbarCommand::CommandLabel_SaveParsedFlowFiles = NSLOCTEXT("NodeToCode", "SaveParsedFlowFiles", "Save Parsed/Flow Files");
+const FText FN2CToolbarCommand::CommandLabel_SaveMcpGraphText = NSLOCTEXT("NodeToCode", "SaveMcpGraphText", "Save MCP Graph Text");
 const FText FN2CToolbarCommand::CommandLabel_SaveParsedJson = NSLOCTEXT("NodeToCode", "SaveParsedJson", "Save Parsed Json");
 const FText FN2CToolbarCommand::CommandLabel_SaveFlowJson = NSLOCTEXT("NodeToCode", "SaveFlowJson", "Save Flow Json");
 const FText FN2CToolbarCommand::CommandLabel_SaveFlowText = NSLOCTEXT("NodeToCode", "SaveFlowText", "Save Flow Text");
@@ -44,6 +46,7 @@ const FText FN2CToolbarCommand::CommandLabel_CopyParsedJson = NSLOCTEXT("NodeToC
 
 const FText FN2CToolbarCommand::CommandTooltip_SaveBlueprintJson = NSLOCTEXT("NodeToCode", "SaveBlueprintJsonTooltip", "Save the serialized Blueprint JSON to file");
 const FText FN2CToolbarCommand::CommandTooltip_SaveParsedFlowFiles = NSLOCTEXT("NodeToCode", "SaveParsedFlowFilesTooltip", "Save parsed.json, flow.json, and flow.txt for the current Blueprint graph");
+const FText FN2CToolbarCommand::CommandTooltip_SaveMcpGraphText = NSLOCTEXT("NodeToCode", "SaveMcpGraphTextTooltip", "Save MCP-style graph text for the current Blueprint graph");
 const FText FN2CToolbarCommand::CommandTooltip_SaveParsedJson = NSLOCTEXT("NodeToCode", "SaveParsedJsonTooltip", "Save parsed.json under the translation output directory");
 const FText FN2CToolbarCommand::CommandTooltip_SaveFlowJson = NSLOCTEXT("NodeToCode", "SaveFlowJsonTooltip", "Save flow.json under the translation output directory");
 const FText FN2CToolbarCommand::CommandTooltip_SaveFlowText = NSLOCTEXT("NodeToCode", "SaveFlowTextTooltip", "Save flow.txt under the translation output directory");
@@ -108,6 +111,14 @@ void FN2CToolbarCommand::RegisterCommands()
         SaveParsedFlowFilesCommand,
         "Save Parsed/Flow Files",
         "Save parsed.json, flow.json, and flow.txt for the current Blueprint graph",
+        EUserInterfaceActionType::Button,
+        FInputChord()
+    );
+
+    UI_COMMAND(
+        SaveMcpGraphTextCommand,
+        "Save MCP Graph Text",
+        "Save MCP-style graph text for the current Blueprint graph",
         EUserInterfaceActionType::Button,
         FInputChord()
     );

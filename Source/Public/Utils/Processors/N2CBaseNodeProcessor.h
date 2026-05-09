@@ -29,6 +29,14 @@ public:
      * @return True if processing succeeded
      */
     virtual bool Process(UK2Node* Node, FN2CNodeDefinition& OutNodeDef) override;
+
+    /**
+     * Get the MCP graph text label for a node without modifying node definitions.
+     *
+     * @param Node The K2Node to label
+     * @return Human-readable MCP graph text label
+     */
+    virtual FString GetGraphTextLabel(UK2Node* Node) const override;
     
 protected:
     /**

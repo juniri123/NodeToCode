@@ -115,3 +115,38 @@ void FN2CFlowControlProcessor::ExtractNodeProperties(UK2Node* Node, FN2CNodeDefi
         return;
     }
 }
+
+FString FN2CFlowControlProcessor::GetGraphTextLabel(UK2Node* Node) const
+{
+    if (Node->IsA<UK2Node_ExecutionSequence>())
+    {
+        return TEXT("Sequence");
+    }
+
+    if (Node->IsA<UK2Node_IfThenElse>())
+    {
+        return TEXT("Branch");
+    }
+
+    if (Node->IsA<UK2Node_Select>())
+    {
+        return TEXT("Select");
+    }
+
+    if (Node->IsA<UK2Node_Switch>())
+    {
+        return TEXT("Switch");
+    }
+
+    if (Node->IsA<UK2Node_MultiGate>())
+    {
+        return TEXT("MultiGate");
+    }
+
+    if (Node->IsA<UK2Node_DoOnceMultiInput>())
+    {
+        return TEXT("DoOnce");
+    }
+
+    return FN2CBaseNodeProcessor::GetGraphTextLabel(Node);
+}

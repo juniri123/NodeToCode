@@ -74,3 +74,23 @@ void FN2CVariableProcessor::ExtractNodeProperties(UK2Node* Node, FN2CNodeDefinit
     #pragma endregion
     FN2CLogger::Get().Log(VarInfo, EN2CLogSeverity::Debug);
 }
+
+FString FN2CVariableProcessor::GetGraphTextLabel(UK2Node* Node) const
+{
+    if (Cast<UK2Node_VariableGet>(Node))
+    {
+        return TEXT("VariableGet");
+    }
+
+    if (Cast<UK2Node_VariableSet>(Node))
+    {
+        return TEXT("VariableSet");
+    }
+
+    if (Cast<UK2Node_Variable>(Node))
+    {
+        return TEXT("Variable");
+    }
+
+    return FN2CBaseNodeProcessor::GetGraphTextLabel(Node);
+}

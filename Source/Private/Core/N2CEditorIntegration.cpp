@@ -9,6 +9,7 @@
 #include "Core/N2CEditorWindow.h"
 #include "Core/N2CFlowBuilder.h"
 #include "Core/N2CParsedDumpBuilder.h"
+#include "Core/N2CMcpGraphTextBuilder.h"
 #include "Core/N2CNodeTranslator.h"
 #include "Core/N2CSerializer.h"
 #include "Core/N2CSettings.h"
@@ -848,6 +849,10 @@ bool FN2CEditorIntegration::ExecuteSaveParsedFlowFiles(TWeakPtr<FBlueprintEditor
         FN2CLogger::Get().LogError(FString::Printf(TEXT("Failed to save flow text: %s"), *FlowTextPath));
         return false;
     }
+    if (!SaveMcpGraphTextFile(CollectedNodes, SafeGraphName, FlowDir))
+    {
+        return false;
+    }
 
     FNotificationInfo Info(NSLOCTEXT("NodeToCode", "ParsedFlowSaved", "Parsed/Flow files saved"));
     Info.bFireAndForget = true;
@@ -855,6 +860,50 @@ bool FN2CEditorIntegration::ExecuteSaveParsedFlowFiles(TWeakPtr<FBlueprintEditor
     Info.FadeOutDuration = 0.5f;
     Info.ExpireDuration = 2.0f;
     FSlateNotificationManager::Get().AddNotification(Info);
+    return true;
+}
+
+void FN2CEditorIntegration::ExecuteSaveMcpGraphText(TWeakPtr<FBlueprintEditor> InEditor)
+{
+    TArray<UK2Node*> CollectedNodes;
+    FString SafeGraphName;
+    FString RootPath;
+    FString FlowDir;
+    if (!PrepareSaveContext(InEditor, CollectedNodes, SafeGraphName, RootPath, FlowDir))
+    {
+        return;
+    }
+
+    if (!SaveMcpGraphTextFile(CollectedNodes, SafeGraphName, FlowDir))
+    {
+        return;
+    }
+
+    FNotificationInfo Info(NSLOCTEXT("NodeToCode", "McpGraphTextSaved", "MCP graph text file saved"));
+    Info.bFireAndForget = true;
+    Info.FadeInDuration = 0.2f;
+    Info.FadeOutDuration = 0.5f;
+    Info.ExpireDuration = 2.0f;
+    FSlateNotificationManager::Get().AddNotification(Info);
+}
+
+bool FN2CEditorIntegration::SaveMcpGraphTextFile(const TArray<UK2Node*>& CollectedNodes, const FString& SafeGraphName, const FString& FlowDir) const
+{
+    FString GraphText;
+    FString GraphTextError;
+    if (!FN2CMcpGraphTextBuilder::BuildGraphTextFromNodes(CollectedNodes, GraphText, GraphTextError))
+    {
+        FN2CLogger::Get().LogError(FString::Printf(TEXT("Failed to build MCP graph text: %s"), *GraphTextError));
+        return false;
+    }
+
+    const FString GraphTextPath = FPaths::Combine(FlowDir, FString::Printf(TEXT("%s_graph.txt"), *SafeGraphName));
+    if (!FFileHelper::SaveStringToFile(GraphText, *GraphTextPath, FFileHelper::EEncodingOptions::ForceUTF8WithoutBOM))
+    {
+        FN2CLogger::Get().LogError(FString::Printf(TEXT("Failed to save MCP graph text: %s"), *GraphTextPath));
+        return false;
+    }
+
     return true;
 }
 
@@ -1548,6 +1597,27 @@ void FN2CEditorIntegration::RegisterToolbarForEditor(TSharedPtr<FBlueprintEditor
     );
 
     CommandList->MapAction(
+        FN2CToolbarCommand::Get().SaveMcpGraphTextCommand,
+        FExecuteAction::CreateLambda([this, WeakEditor, BlueprintName]()
+        {
+            FN2CLogger::Get().Log(
+                FString::Printf(TEXT("Save MCP Graph Text triggered for Blueprint: %s"), *BlueprintName),
+                EN2CLogSeverity::Info
+            );
+            ExecuteSaveMcpGraphText(WeakEditor);
+        }),
+        FCanExecuteAction::CreateLambda([WeakEditor]()
+        {
+            TSharedPtr<FBlueprintEditor> Editor = WeakEditor.Pin();
+            if (!Editor.IsValid())
+            {
+                return false;
+            }
+            return Editor->GetCurrentMode() == FBlueprintEditorApplicationModes::StandardBlueprintEditorMode;
+        })
+    );
+
+    CommandList->MapAction(
         FN2CToolbarCommand::Get().InspectBlueprintAuraMcpCommand,
         FExecuteAction::CreateLambda([this, WeakEditor, BlueprintName]()
         {
@@ -1769,6 +1839,7 @@ void FN2CEditorIntegration::RegisterToolbarForEditor(TSharedPtr<FBlueprintEditor
                     MenuBuilder.AddMenuEntry(FN2CToolbarCommand::Get().SaveBlueprintJsonCommand);
                     MenuBuilder.AddMenuSeparator();
                     MenuBuilder.AddMenuEntry(FN2CToolbarCommand::Get().SaveParsedFlowFilesCommand);
+                    MenuBuilder.AddMenuEntry(FN2CToolbarCommand::Get().SaveMcpGraphTextCommand);
                     MenuBuilder.AddMenuEntry(FN2CToolbarCommand::Get().InspectBlueprintAuraMcpCommand);
                     MenuBuilder.AddMenuEntry(FN2CToolbarCommand::Get().OpenSaveFolderCommand);
                     MenuBuilder.AddMenuEntry(FN2CToolbarCommand::Get().Bp2CppMcpCommand);
