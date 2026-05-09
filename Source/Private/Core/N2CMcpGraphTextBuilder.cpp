@@ -80,10 +80,21 @@ void FN2CMcpGraphTextBuilder::AppendPinGraphTextLines(const UEdGraphPin* Pin, TA
         return;
     }
 
-    const FString DefaultValue = FormatDefaultValue(Pin);
-    if (!DefaultValue.IsEmpty())
+    const bool bIsOutputPin = Pin->Direction == EGPD_Output;
+    const bool bHasLinks = Pin->LinkedTo.Num() > 0;
+
+    if (!bIsOutputPin && !bHasLinks)
     {
-        OutLines.Add(FString::Printf(TEXT("    %s=%s"), *FormatPinName(Pin), *DefaultValue));
+        const FString DefaultValue = FormatDefaultValue(Pin);
+        if (!DefaultValue.IsEmpty())
+        {
+            OutLines.Add(FString::Printf(TEXT("    %s=%s"), *FormatPinName(Pin), *DefaultValue));
+        }
+    }
+
+    if (!bIsOutputPin)
+    {
+        return;
     }
 
     for (UEdGraphPin* LinkedPin : Pin->LinkedTo)
@@ -130,13 +141,18 @@ FString FN2CMcpGraphTextBuilder::FormatPinName(const UEdGraphPin* Pin)
         return TEXT("(ThisNode)");
     }
 
-    const FString DisplayName = Pin->GetDisplayName().ToString();
-    if (DisplayName.IsEmpty())
+    FString PinName = Pin->GetDisplayName().ToString();
+    if (PinName.IsEmpty())
     {
-        return TEXT("(UnknownPin)");
+        PinName = Pin->PinName.ToString();
     }
 
-    return FString::Printf(TEXT("`%s`"), *DisplayName);
+    if (PinName.IsEmpty())
+    {
+        PinName = TEXT("UnknownPin");
+    }
+
+    return FString::Printf(TEXT("`%s`"), *PinName);
 }
 
 FString FN2CMcpGraphTextBuilder::FormatDefaultValue(const UEdGraphPin* Pin)
@@ -171,23 +187,28 @@ FString FN2CMcpGraphTextBuilder::FormatLinkTarget(const UEdGraphPin* LinkedPin)
         return FString();
     }
 
+    FString PinName = LinkedPin->GetDisplayName().ToString();
+    if (PinName.IsEmpty())
+    {
+        PinName = LinkedPin->PinName.ToString();
+    }
+
     if (LinkedPin->PinType.PinCategory == UEdGraphSchema_K2::PC_Exec)
     {
-        return FString();
+        return PinName.IsEmpty() ? FString() : PinName;
     }
 
-    const FString DisplayName = LinkedPin->GetDisplayName().ToString();
-    if (DisplayName.IsEmpty())
+    if (PinName.IsEmpty())
     {
-        return TEXT("(UnknownPin)");
+        PinName = TEXT("UnknownPin");
     }
 
-    if (DisplayName == TEXT("Target"))
+    if (PinName == TEXT("Target"))
     {
         return TEXT("Target");
     }
 
-    return FString::Printf(TEXT("`%s`"), *DisplayName);
+    return FString::Printf(TEXT("`%s`"), *PinName);
 }
 
 FString FN2CMcpGraphTextBuilder::GetNodeLabel(UK2Node* Node)

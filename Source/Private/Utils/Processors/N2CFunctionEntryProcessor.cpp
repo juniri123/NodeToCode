@@ -74,7 +74,7 @@ FString FN2CFunctionEntryProcessor::GetGraphTextLabel(UK2Node* Node) const
     if (const UK2Node_FunctionEntry* FuncEntryNode = Cast<UK2Node_FunctionEntry>(Node))
     {
         FString FunctionName = FuncEntryNode->CustomGeneratedFunctionName.ToString();
-        if (FunctionName.IsEmpty() && FuncEntryNode->GetGraph())
+        if ((FunctionName.IsEmpty() || FunctionName == TEXT("None")) && FuncEntryNode->GetGraph())
         {
             FunctionName = FuncEntryNode->GetGraph()->GetName();
         }
@@ -93,9 +93,12 @@ FString FN2CFunctionEntryProcessor::GetGraphTextLabel(UK2Node* Node) const
 
     if (const UK2Node_MacroInstance* MacroNode = Cast<UK2Node_MacroInstance>(Node))
     {
-        const FString MacroName = MacroNode->GetMacroGraph()
-            ? MacroNode->GetMacroGraph()->GetName()
-            : FString();
+        FString MacroName = MacroNode->GetNodeTitle(ENodeTitleType::ListView).ToString();
+        if (MacroName.IsEmpty() && MacroNode->GetMacroGraph())
+        {
+            MacroName = MacroNode->GetMacroGraph()->GetName();
+        }
+
         return MacroName.IsEmpty() ? TEXT("Macro") : FString::Printf(TEXT("Macro: %s"), *MacroName);
     }
 
