@@ -25,5 +25,6 @@ private:
     static FString FormatSourcePinName(const UEdGraphPin* Pin);
     static FString FormatTargetPinName(const UEdGraphPin* Pin);
     static FString FormatDefaultValue(const UEdGraphPin* Pin);
+    static bool IsGenericExecPinName(const FString& PinName);
     static FString GetNodeLabel(UK2Node* Node);
 };

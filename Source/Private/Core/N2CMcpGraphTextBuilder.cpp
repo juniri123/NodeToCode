@@ -170,7 +170,7 @@ FString FN2CMcpGraphTextBuilder::FormatTargetPinName(const UEdGraphPin* Pin)
 
     if (Pin->PinType.PinCategory == UEdGraphSchema_K2::PC_Exec)
     {
-        return PinName.IsEmpty() ? FString() : PinName;
+        return IsGenericExecPinName(PinName) ? FString() : PinName;
     }
 
     if (PinName.IsEmpty())
@@ -184,6 +184,12 @@ FString FN2CMcpGraphTextBuilder::FormatTargetPinName(const UEdGraphPin* Pin)
     }
 
     return FString::Printf(TEXT("`%s`"), *PinName);
+}
+
+bool FN2CMcpGraphTextBuilder::IsGenericExecPinName(const FString& PinName)
+{
+    return PinName.Equals(TEXT("execute"), ESearchCase::IgnoreCase)
+        || PinName.Equals(TEXT("then"), ESearchCase::IgnoreCase);
 }
 
 FString FN2CMcpGraphTextBuilder::FormatDefaultValue(const UEdGraphPin* Pin)
