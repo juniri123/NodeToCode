@@ -228,19 +228,29 @@ FString FN2CMcpGraphTextBuilder::GetNodeLabel(UK2Node* Node)
 {
     if (!Node)
     {
-        return TEXT("Unknown");
+        return FString("Unknown");
     }
 
-    const EN2CNodeType NodeType = FN2CNodeTypeRegistry::Get().GetNodeType(Node);
-    if (TSharedPtr<IN2CNodeProcessor> Processor = FN2CNodeProcessorFactory::Get().GetProcessor(NodeType))
+    FString NodeLabel = Node->GetName();
+    int32 LastUnderscoreIndex = INDEX_NONE;
+    if (NodeLabel.FindLastChar(TEXT('_'), LastUnderscoreIndex) && LastUnderscoreIndex < NodeLabel.Len() - 1)
     {
-        const FString Label = Processor->GetGraphTextLabel(Node);
-        if (!Label.IsEmpty())
+        const FString Suffix = NodeLabel.Mid(LastUnderscoreIndex + 1);
+        if (Suffix.IsNumeric())
         {
-            return Label;
+            NodeLabel.LeftInline(LastUnderscoreIndex);
         }
     }
 
-    const FString Title = Node->GetNodeTitle(ENodeTitleType::ListView).ToString();
-    return Title.IsEmpty() ? Node->GetClass()->GetName() : Title;
+    NodeLabel.RemoveFromStart(TEXT("K2Node_"));
+    
+    if (NodeLabel.IsEmpty())
+    {
+        const EN2CNodeType NodeType = FN2CNodeTypeRegistry::Get().GetNodeType(Node);
+        if (TSharedPtr<IN2CNodeProcessor> Processor = FN2CNodeProcessorFactory::Get().GetProcessor(NodeType))
+        {
+            NodeLabel= Processor->GetGraphTextLabel(Node);
+        }    
+    }
+    return NodeLabel;
 }
