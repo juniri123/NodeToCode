@@ -243,14 +243,5 @@ FString FN2CMcpGraphTextBuilder::GetNodeLabel(UK2Node* Node)
     }
 
     NodeLabel.RemoveFromStart(TEXT("K2Node_"));
-    
-    if (NodeLabel.IsEmpty())
-    {
-        const EN2CNodeType NodeType = FN2CNodeTypeRegistry::Get().GetNodeType(Node);
-        if (TSharedPtr<IN2CNodeProcessor> Processor = FN2CNodeProcessorFactory::Get().GetProcessor(NodeType))
-        {
-            NodeLabel= Processor->GetGraphTextLabel(Node);
-        }    
-    }
     return NodeLabel;
 }

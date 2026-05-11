@@ -69,38 +69,3 @@ void FN2CFunctionEntryProcessor::ExtractNodeProperties(UK2Node* Node, FN2CNodeDe
     }
 }
 
-FString FN2CFunctionEntryProcessor::GetGraphTextLabel(UK2Node* Node) const
-{
-    if (const UK2Node_FunctionEntry* FuncEntryNode = Cast<UK2Node_FunctionEntry>(Node))
-    {
-        FString FunctionName = FuncEntryNode->CustomGeneratedFunctionName.ToString();
-        if ((FunctionName.IsEmpty() || FunctionName == TEXT("None")) && FuncEntryNode->GetGraph())
-        {
-            FunctionName = FuncEntryNode->GetGraph()->GetName();
-        }
-        if (FunctionName.IsEmpty())
-        {
-            FunctionName = TEXT("Unknown");
-        }
-
-        return FString::Printf(TEXT("Function: %s [No Inputs, No Outputs]"), *FunctionName);
-    }
-
-    if (Cast<UK2Node_FunctionResult>(Node))
-    {
-        return TEXT("Function Result");
-    }
-
-    if (const UK2Node_MacroInstance* MacroNode = Cast<UK2Node_MacroInstance>(Node))
-    {
-        FString MacroName = MacroNode->GetNodeTitle(ENodeTitleType::ListView).ToString();
-        if (MacroName.IsEmpty() && MacroNode->GetMacroGraph())
-        {
-            MacroName = MacroNode->GetMacroGraph()->GetName();
-        }
-
-        return MacroName.IsEmpty() ? TEXT("Macro") : FString::Printf(TEXT("Macro: %s"), *MacroName);
-    }
-
-    return FN2CBaseNodeProcessor::GetGraphTextLabel(Node);
-}

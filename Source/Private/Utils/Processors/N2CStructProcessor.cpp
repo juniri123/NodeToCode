@@ -120,27 +120,3 @@ void FN2CStructProcessor::ExtractNodeProperties(UK2Node* Node, FN2CNodeDefinitio
     }
 }
 
-FString FN2CStructProcessor::GetGraphTextLabel(UK2Node* Node) const
-{
-    if (Cast<UK2Node_MakeStruct>(Node))
-    {
-        return TEXT("MakeStruct");
-    }
-
-    if (Cast<UK2Node_BreakStruct>(Node))
-    {
-        return TEXT("BreakStruct");
-    }
-
-    if (Cast<UK2Node_SetFieldsInStruct>(Node))
-    {
-        return TEXT("SetFieldsInStruct");
-    }
-
-    if (Cast<UK2Node_StructOperation>(Node))
-    {
-        return TEXT("StructOperation");
-    }
-
-    return FN2CBaseNodeProcessor::GetGraphTextLabel(Node);
-}

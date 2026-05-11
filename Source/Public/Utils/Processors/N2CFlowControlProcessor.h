@@ -23,10 +23,6 @@ public:
     
     /** Destructor */
     virtual ~FN2CFlowControlProcessor() {}
-
-    /** Get the MCP graph text label for flow-control nodes. */
-    virtual FString GetGraphTextLabel(UK2Node* Node) const override;
-    
 protected:
     /**
      * Extract node-specific properties

@@ -28,11 +28,4 @@ public:
      */
     virtual bool Process(UK2Node* Node, FN2CNodeDefinition& OutNodeDef) = 0;
 
-    /**
-     * Get the MCP graph text label for a node without modifying node definitions.
-     *
-     * @param Node The K2Node to label
-     * @return Human-readable MCP graph text label
-     */
-    virtual FString GetGraphTextLabel(UK2Node* Node) const = 0;
 };

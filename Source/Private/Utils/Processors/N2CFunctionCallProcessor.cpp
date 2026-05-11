@@ -28,18 +28,3 @@ void FN2CFunctionCallProcessor::ExtractNodeProperties(UK2Node* Node, FN2CNodeDef
     }
 }
 
-FString FN2CFunctionCallProcessor::GetGraphTextLabel(UK2Node* Node) const
-{
-    const UK2Node_CallFunction* FuncNode = Cast<UK2Node_CallFunction>(Node);
-    if (!FuncNode)
-    {
-        return FN2CBaseNodeProcessor::GetGraphTextLabel(Node);
-    }
-
-    if (const UFunction* Function = FuncNode->GetTargetFunction())
-    {
-        return FString::Printf(TEXT("Function Call: %s"), *Function->GetName());
-    }
-
-    return TEXT("Function Call");
-}
