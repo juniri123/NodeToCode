@@ -88,7 +88,7 @@ void FN2CMcpGraphTextBuilder::AppendPinGraphTextLines(const UEdGraphPin* Pin, TA
         const FString DefaultValue = FormatDefaultValue(Pin);
         if (!DefaultValue.IsEmpty())
         {
-            OutLines.Add(FString::Printf(TEXT("    %s=%s"), *FormatPinName(Pin), *DefaultValue));
+            OutLines.Add(FString::Printf(TEXT("    %s=%s"), *FormatTargetPinName(Pin), *DefaultValue));
         }
     }
 
@@ -106,8 +106,8 @@ void FN2CMcpGraphTextBuilder::AppendPinGraphTextLines(const UEdGraphPin* Pin, TA
 
         OutLines.Add(FString::Printf(
             TEXT("    %s->%s(%s)"),
-            *FormatPinName(Pin),
-            *FormatLinkTarget(LinkedPin),
+            *FormatSourcePinName(Pin),
+            *FormatTargetPinName(LinkedPin),
             *FormatNodePath(LinkedPin->GetOwningNode())
         ));
     }
@@ -129,7 +129,7 @@ FString FN2CMcpGraphTextBuilder::FormatNodePath(const UEdGraphNode* Node)
     return FString::Printf(TEXT("%s.%s"), *Graph->GetName(), *Node->GetName());
 }
 
-FString FN2CMcpGraphTextBuilder::FormatPinName(const UEdGraphPin* Pin)
+FString FN2CMcpGraphTextBuilder::FormatSourcePinName(const UEdGraphPin* Pin)
 {
     if (!Pin)
     {
@@ -150,6 +150,37 @@ FString FN2CMcpGraphTextBuilder::FormatPinName(const UEdGraphPin* Pin)
     if (PinName.IsEmpty())
     {
         PinName = TEXT("UnknownPin");
+    }
+
+    return FString::Printf(TEXT("`%s`"), *PinName);
+}
+
+FString FN2CMcpGraphTextBuilder::FormatTargetPinName(const UEdGraphPin* Pin)
+{
+    if (!Pin)
+    {
+        return FString();
+    }
+
+    FString PinName = Pin->GetDisplayName().ToString();
+    if (PinName.IsEmpty())
+    {
+        PinName = Pin->PinName.ToString();
+    }
+
+    if (Pin->PinType.PinCategory == UEdGraphSchema_K2::PC_Exec)
+    {
+        return PinName.IsEmpty() ? FString() : PinName;
+    }
+
+    if (PinName.IsEmpty())
+    {
+        PinName = TEXT("UnknownPin");
+    }
+
+    if (PinName == TEXT("Target"))
+    {
+        return TEXT("Target");
     }
 
     return FString::Printf(TEXT("`%s`"), *PinName);
@@ -178,37 +209,6 @@ FString FN2CMcpGraphTextBuilder::FormatDefaultValue(const UEdGraphPin* Pin)
     }
 
     return FString();
-}
-
-FString FN2CMcpGraphTextBuilder::FormatLinkTarget(const UEdGraphPin* LinkedPin)
-{
-    if (!LinkedPin)
-    {
-        return FString();
-    }
-
-    FString PinName = LinkedPin->GetDisplayName().ToString();
-    if (PinName.IsEmpty())
-    {
-        PinName = LinkedPin->PinName.ToString();
-    }
-
-    if (LinkedPin->PinType.PinCategory == UEdGraphSchema_K2::PC_Exec)
-    {
-        return PinName.IsEmpty() ? FString() : PinName;
-    }
-
-    if (PinName.IsEmpty())
-    {
-        PinName = TEXT("UnknownPin");
-    }
-
-    if (PinName == TEXT("Target"))
-    {
-        return TEXT("Target");
-    }
-
-    return FString::Printf(TEXT("`%s`"), *PinName);
 }
 
 FString FN2CMcpGraphTextBuilder::GetNodeLabel(UK2Node* Node)

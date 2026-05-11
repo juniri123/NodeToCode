@@ -22,8 +22,8 @@ private:
     static void AppendNodeGraphTextLines(UK2Node* Node, TArray<FString>& OutLines);
     static void AppendPinGraphTextLines(const UEdGraphPin* Pin, TArray<FString>& OutLines);
     static FString FormatNodePath(const UEdGraphNode* Node);
-    static FString FormatPinName(const UEdGraphPin* Pin);
+    static FString FormatSourcePinName(const UEdGraphPin* Pin);
+    static FString FormatTargetPinName(const UEdGraphPin* Pin);
     static FString FormatDefaultValue(const UEdGraphPin* Pin);
-    static FString FormatLinkTarget(const UEdGraphPin* LinkedPin);
     static FString GetNodeLabel(UK2Node* Node);
 };
