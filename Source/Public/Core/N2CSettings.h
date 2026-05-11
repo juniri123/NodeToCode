@@ -371,6 +371,13 @@ enum class EN2CMcpPayloadMode : uint8
     RawContent UMETA(DisplayName = "Raw Content"),
     FilePaths UMETA(DisplayName = "File Paths")
 };
+
+UENUM(BlueprintType)
+enum class EN2CMcpInspectPayloadSource : uint8
+{
+    CppGenerated UMETA(DisplayName = "C++ Generated Files"),
+    McpServerResponse UMETA(DisplayName = "MCP Server Response Files")
+};
 #pragma endregion
 
 UCLASS(Config = NodeToCode, DefaultConfig, meta = (Category = "Node to Code", DisplayName = "Node to Code"))
@@ -673,6 +680,12 @@ public:
         meta = (DisplayName = "Payload Mode",
                ToolTip = "Choose whether to send raw content or file paths"))
     EN2CMcpPayloadMode McpPayloadMode = EN2CMcpPayloadMode::RawContent;
+
+    /** Select which graph/struct text files are sent to the LLM payload */
+    UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Node to Code | BP2CPP (MCP)",
+        meta = (DisplayName = "Inspect Payload Source",
+               ToolTip = "Choose whether the LLM receives the C++-generated graph/struct files or the MCP server inspect response files"))
+    EN2CMcpInspectPayloadSource McpInspectPayloadSource = EN2CMcpInspectPayloadSource::CppGenerated;
 
     /** Include flow.json */
     UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Node to Code | BP2CPP (MCP)",

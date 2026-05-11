@@ -586,24 +586,50 @@ void FN2CEditorIntegration::ExecuteBp2CppUsingMCP(TWeakPtr<FBlueprintEditor> InE
         FN2CLogger::Get().LogError(TEXT("Failed to resolve Blueprint for inspect file lookup (MCP)"));
         return;
     }
+
+    // Select which graph/struct text files are sent to the LLM payload.
     const FString InspectPrefix = FPaths::GetCleanFilename(BlueprintForInspect->GetPathName());
-    const FString McpToolDir = FPaths::Combine(FlowDir, TEXT("mcp_tool_response"));
-    const FString InspectGraphPath = FPaths::Combine(McpToolDir, InspectPrefix + TEXT("_graph.txt"));
-    const FString InspectStructsPath = FPaths::Combine(McpToolDir, InspectPrefix + TEXT("_structs.txt"));
+    FString InspectGraphPath;
+    FString InspectStructsPath;
+    FString InspectSourceLabel;
+
+    if (Settings->McpInspectPayloadSource == EN2CMcpInspectPayloadSource::McpServerResponse)
+    {
+        const FString McpToolDir = FPaths::Combine(FlowDir, TEXT("mcp_tool_response"));
+        InspectGraphPath = FPaths::Combine(McpToolDir, InspectPrefix + TEXT("_graph.txt"));
+        InspectStructsPath = FPaths::Combine(McpToolDir, InspectPrefix + TEXT("_structs.txt"));
+        InspectSourceLabel = TEXT("MCP server response");
+    }
+    else
+    {
+        InspectGraphPath = FPaths::Combine(FlowDir, FString::Printf(TEXT("%s_graph.txt"), *SafeGraphName));
+        InspectStructsPath = FPaths::Combine(FlowDir, FString::Printf(TEXT("%s_structs.txt"), *SafeGraphName));
+        InspectSourceLabel = TEXT("C++ generated files");
+    }
 
     FString InspectGraphText;
     if (!FFileHelper::LoadFileToString(InspectGraphText, *InspectGraphPath))
     {
-        FN2CLogger::Get().LogError(FString::Printf(TEXT("Inspect graph file not found: %s. Run 'Inspect Blueprint (Aura MCP API)' first."), *InspectGraphPath));
+        FN2CLogger::Get().LogError(FString::Printf(
+            TEXT("Inspect graph file not found (%s): %s"),
+            *InspectSourceLabel,
+            *InspectGraphPath));
         return;
     }
 
     FString InspectStructsText;
     if (!FFileHelper::LoadFileToString(InspectStructsText, *InspectStructsPath))
     {
-        FN2CLogger::Get().LogError(FString::Printf(TEXT("Inspect structs file not found: %s. Run 'Inspect Blueprint (Aura MCP API)' first."), *InspectStructsPath));
+        FN2CLogger::Get().LogError(FString::Printf(
+            TEXT("Inspect structs file not found (%s): %s"),
+            *InspectSourceLabel,
+            *InspectStructsPath));
         return;
     }
+
+    FN2CLogger::Get().Log(
+        FString::Printf(TEXT("Using %s for LLM inspect payload"), *InspectSourceLabel),
+        EN2CLogSeverity::Info);
 
     // FlowText is needed for LLM regardless of bMcpIncludeFlowText; load if not already populated.
     FString FlowTextForLLM = FlowText;
@@ -626,13 +652,17 @@ void FN2CEditorIntegration::ExecuteBp2CppUsingMCP(TWeakPtr<FBlueprintEditor> InE
     // so request, llm_response, and translated outputs sit together in BP_Graph_CL... directory.
     LLMModule->SetLatestTranslationPath(FlowDir);
 
-    UN2CMcpModule::Get()->CreateSessionAsync(
-        Request,
-        UN2CMcpModule::FN2CMcpSessionComplete::CreateRaw(
-            this,
-            &FN2CEditorIntegration::OnMcpSessionComplete
-        )
-    );
+    // MCP session creation is temporarily disabled.
+    // UN2CMcpModule::Get()->CreateSessionAsync(
+    //     Request,
+    //     UN2CMcpModule::FN2CMcpSessionComplete::CreateRaw(
+    //         this,
+    //         &FN2CEditorIntegration::OnMcpSessionComplete
+    //     )
+    // );
+    
+    // 지금은 mcp 가 별도로 필요하지 않아서, 세션 만들지 않고 보낸다.
+    SendMcpRequestToLLM(TEXT("-1"));
 }
 
 void FN2CEditorIntegration::ExecuteInspectBlueprintAuraMCP(TWeakPtr<FBlueprintEditor> InEditor)
