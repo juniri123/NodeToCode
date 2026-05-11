@@ -46,11 +46,6 @@ bool FN2CMcpGraphTextBuilder::BuildGraphTextFromNodes(const TArray<UK2Node*>& No
 
     for (UK2Node* Node : Nodes)
     {
-        if (!Node)
-        {
-            continue;
-        }
-
         AppendNodeGraphTextLines(Node, Lines);
     }
 
