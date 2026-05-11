@@ -486,7 +486,7 @@ void FN2CEditorIntegration::ExecuteBp2CppUsingMCP(TWeakPtr<FBlueprintEditor> InE
         return;
     }
 
-    if (!ExecuteSaveParsedFlowFiles(InEditor))
+    if (!ExecuteSaveAnalysisFiles(InEditor))
     {
         return;
     }
@@ -769,20 +769,8 @@ void FN2CEditorIntegration::ExecuteInspectBlueprintAuraMCP(TWeakPtr<FBlueprintEd
     );
 }
 
-bool FN2CEditorIntegration::ExecuteSaveParsedFlowFiles(TWeakPtr<FBlueprintEditor> InEditor)
+bool FN2CEditorIntegration::SaveParsedFlowFiles(const TArray<UK2Node*>& CollectedNodes, const FString& SafeGraphName, const FString& FlowDir) const
 {
-    TSharedPtr<FBlueprintEditor> Editor = InEditor.Pin();
-    UEdGraph* FocusedGraph = Editor.IsValid() ? Editor->GetFocusedGraph() : nullptr;
-
-    TArray<UK2Node*> CollectedNodes;
-    FString SafeGraphName;
-    FString RootPath;
-    FString FlowDir;
-    if (!PrepareSaveContext(InEditor, CollectedNodes, SafeGraphName, RootPath, FlowDir))
-    {
-        return false;
-    }
-
     FN2CFlowData FlowData;
     FString FlowDataError;
     if (!FN2CFlowBuilder::BuildFlowDataFromNodes(CollectedNodes, FlowData, FlowDataError))
@@ -853,72 +841,46 @@ bool FN2CEditorIntegration::ExecuteSaveParsedFlowFiles(TWeakPtr<FBlueprintEditor
         FN2CLogger::Get().LogError(FString::Printf(TEXT("Failed to save flow text: %s"), *FlowTextPath));
         return false;
     }
+
+    return true;
+}
+
+bool FN2CEditorIntegration::ExecuteSaveAnalysisFiles(TWeakPtr<FBlueprintEditor> InEditor)
+{
+    TArray<UK2Node*> CollectedNodes;
+    FString SafeGraphName;
+    FString RootPath;
+    FString FlowDir;
+    if (!PrepareSaveContext(InEditor, CollectedNodes, SafeGraphName, RootPath, FlowDir))
+    {
+        return false;
+    }
+
+    TSharedPtr<FBlueprintEditor> Editor = InEditor.Pin();
+    UEdGraph* FocusedGraph = Editor.IsValid() ? Editor->GetFocusedGraph() : nullptr;
+
+    if (!SaveParsedFlowFiles(CollectedNodes, SafeGraphName, FlowDir))
+    {
+        return false;
+    }
+
     if (!SaveMcpGraphTextFile(FocusedGraph, CollectedNodes, SafeGraphName, FlowDir))
     {
         return false;
     }
 
-    FNotificationInfo Info(NSLOCTEXT("NodeToCode", "ParsedFlowSaved", "Parsed/Flow files saved"));
+    if (!SaveMcpStructTextFile(FocusedGraph, CollectedNodes, SafeGraphName, FlowDir))
+    {
+        return false;
+    }
+
+    FNotificationInfo Info(NSLOCTEXT("NodeToCode", "AnalysisFilesSaved", "Analysis files saved"));
     Info.bFireAndForget = true;
     Info.FadeInDuration = 0.2f;
     Info.FadeOutDuration = 0.5f;
     Info.ExpireDuration = 2.0f;
     FSlateNotificationManager::Get().AddNotification(Info);
     return true;
-}
-
-void FN2CEditorIntegration::ExecuteSaveMcpGraphText(TWeakPtr<FBlueprintEditor> InEditor)
-{
-    TSharedPtr<FBlueprintEditor> Editor = InEditor.Pin();
-    UEdGraph* FocusedGraph = Editor.IsValid() ? Editor->GetFocusedGraph() : nullptr;
-
-    TArray<UK2Node*> CollectedNodes;
-    FString SafeGraphName;
-    FString RootPath;
-    FString FlowDir;
-    if (!PrepareSaveContext(InEditor, CollectedNodes, SafeGraphName, RootPath, FlowDir))
-    {
-        return;
-    }
-
-    if (!SaveMcpGraphTextFile(FocusedGraph, CollectedNodes, SafeGraphName, FlowDir))
-    {
-        return;
-    }
-
-    FNotificationInfo Info(NSLOCTEXT("NodeToCode", "McpGraphTextSaved", "MCP graph text file saved"));
-    Info.bFireAndForget = true;
-    Info.FadeInDuration = 0.2f;
-    Info.FadeOutDuration = 0.5f;
-    Info.ExpireDuration = 2.0f;
-    FSlateNotificationManager::Get().AddNotification(Info);
-}
-
-void FN2CEditorIntegration::ExecuteSaveMcpStructText(TWeakPtr<FBlueprintEditor> InEditor)
-{
-    TSharedPtr<FBlueprintEditor> Editor = InEditor.Pin();
-    UEdGraph* FocusedGraph = Editor.IsValid() ? Editor->GetFocusedGraph() : nullptr;
-
-    TArray<UK2Node*> CollectedNodes;
-    FString SafeGraphName;
-    FString RootPath;
-    FString FlowDir;
-    if (!PrepareSaveContext(InEditor, CollectedNodes, SafeGraphName, RootPath, FlowDir))
-    {
-        return;
-    }
-
-    if (!SaveMcpStructTextFile(FocusedGraph, CollectedNodes, SafeGraphName, FlowDir))
-    {
-        return;
-    }
-
-    FNotificationInfo Info(NSLOCTEXT("NodeToCode", "McpStructTextSaved", "MCP struct text file saved"));
-    Info.bFireAndForget = true;
-    Info.FadeInDuration = 0.2f;
-    Info.FadeOutDuration = 0.5f;
-    Info.ExpireDuration = 2.0f;
-    FSlateNotificationManager::Get().AddNotification(Info);
 }
 
 bool FN2CEditorIntegration::SaveMcpGraphTextFile(UEdGraph* Graph, const TArray<UK2Node*>& CollectedNodes, const FString& SafeGraphName, const FString& FlowDir) const
@@ -1634,52 +1596,10 @@ void FN2CEditorIntegration::RegisterToolbarForEditor(TSharedPtr<FBlueprintEditor
         FExecuteAction::CreateLambda([this, WeakEditor, BlueprintName]()
         {
             FN2CLogger::Get().Log(
-                FString::Printf(TEXT("Save Parsed/Flow Files triggered for Blueprint: %s"), *BlueprintName),
+                FString::Printf(TEXT("Save Analysis Files triggered for Blueprint: %s"), *BlueprintName),
                 EN2CLogSeverity::Info
             );
-            ExecuteSaveParsedFlowFiles(WeakEditor);
-        }),
-        FCanExecuteAction::CreateLambda([WeakEditor]()
-        {
-            TSharedPtr<FBlueprintEditor> Editor = WeakEditor.Pin();
-            if (!Editor.IsValid())
-            {
-                return false;
-            }
-            return Editor->GetCurrentMode() == FBlueprintEditorApplicationModes::StandardBlueprintEditorMode;
-        })
-    );
-
-    CommandList->MapAction(
-        FN2CToolbarCommand::Get().SaveMcpGraphTextCommand,
-        FExecuteAction::CreateLambda([this, WeakEditor, BlueprintName]()
-        {
-            FN2CLogger::Get().Log(
-                FString::Printf(TEXT("Save MCP Graph Text triggered for Blueprint: %s"), *BlueprintName),
-                EN2CLogSeverity::Info
-            );
-            ExecuteSaveMcpGraphText(WeakEditor);
-        }),
-        FCanExecuteAction::CreateLambda([WeakEditor]()
-        {
-            TSharedPtr<FBlueprintEditor> Editor = WeakEditor.Pin();
-            if (!Editor.IsValid())
-            {
-                return false;
-            }
-            return Editor->GetCurrentMode() == FBlueprintEditorApplicationModes::StandardBlueprintEditorMode;
-        })
-    );
-
-    CommandList->MapAction(
-        FN2CToolbarCommand::Get().SaveMcpStructTextCommand,
-        FExecuteAction::CreateLambda([this, WeakEditor, BlueprintName]()
-        {
-            FN2CLogger::Get().Log(
-                FString::Printf(TEXT("Save MCP Struct Text triggered for Blueprint: %s"), *BlueprintName),
-                EN2CLogSeverity::Info
-            );
-            ExecuteSaveMcpStructText(WeakEditor);
+            ExecuteSaveAnalysisFiles(WeakEditor);
         }),
         FCanExecuteAction::CreateLambda([WeakEditor]()
         {
@@ -1914,8 +1834,6 @@ void FN2CEditorIntegration::RegisterToolbarForEditor(TSharedPtr<FBlueprintEditor
                     MenuBuilder.AddMenuEntry(FN2CToolbarCommand::Get().SaveBlueprintJsonCommand);
                     MenuBuilder.AddMenuSeparator();
                     MenuBuilder.AddMenuEntry(FN2CToolbarCommand::Get().SaveParsedFlowFilesCommand);
-                    MenuBuilder.AddMenuEntry(FN2CToolbarCommand::Get().SaveMcpGraphTextCommand);
-                    MenuBuilder.AddMenuEntry(FN2CToolbarCommand::Get().SaveMcpStructTextCommand);
                     MenuBuilder.AddMenuEntry(FN2CToolbarCommand::Get().InspectBlueprintAuraMcpCommand);
                     MenuBuilder.AddMenuEntry(FN2CToolbarCommand::Get().OpenSaveFolderCommand);
                     MenuBuilder.AddMenuEntry(FN2CToolbarCommand::Get().Bp2CppMcpCommand);

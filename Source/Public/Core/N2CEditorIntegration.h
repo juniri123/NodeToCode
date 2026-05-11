@@ -64,14 +64,11 @@ private:
     /** Execute save blueprint JSON to file for a specific editor */
     void ExecuteSaveJson(TWeakPtr<FBlueprintEditor> InEditor);
 
-    /** Execute save parsed/flow files for a specific editor */
-    bool ExecuteSaveParsedFlowFiles(TWeakPtr<FBlueprintEditor> InEditor);
+    /** Execute save all analysis files for a specific editor */
+    bool ExecuteSaveAnalysisFiles(TWeakPtr<FBlueprintEditor> InEditor);
 
-    /** Execute save MCP-style graph text file for a specific editor */
-    void ExecuteSaveMcpGraphText(TWeakPtr<FBlueprintEditor> InEditor);
-
-    /** Execute save MCP-style struct text file for a specific editor */
-    void ExecuteSaveMcpStructText(TWeakPtr<FBlueprintEditor> InEditor);
+    /** Save parsed/flow files for a specific collected graph */
+    bool SaveParsedFlowFiles(const TArray<UK2Node*>& CollectedNodes, const FString& SafeGraphName, const FString& FlowDir) const;
 
     /** Save independent MCP-style graph text for a specific collected graph */
     bool SaveMcpGraphTextFile(UEdGraph* Graph, const TArray<UK2Node*>& CollectedNodes, const FString& SafeGraphName, const FString& FlowDir) const;
