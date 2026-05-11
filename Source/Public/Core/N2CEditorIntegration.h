@@ -70,8 +70,14 @@ private:
     /** Execute save MCP-style graph text file for a specific editor */
     void ExecuteSaveMcpGraphText(TWeakPtr<FBlueprintEditor> InEditor);
 
+    /** Execute save MCP-style struct text file for a specific editor */
+    void ExecuteSaveMcpStructText(TWeakPtr<FBlueprintEditor> InEditor);
+
     /** Save independent MCP-style graph text for a specific collected graph */
     bool SaveMcpGraphTextFile(UEdGraph* Graph, const TArray<UK2Node*>& CollectedNodes, const FString& SafeGraphName, const FString& FlowDir) const;
+
+    /** Save independent MCP-style struct text for a specific collected graph */
+    bool SaveMcpStructTextFile(UEdGraph* Graph, const TArray<UK2Node*>& CollectedNodes, const FString& SafeGraphName, const FString& FlowDir) const;
 
     /** Execute save parsed JSON file for a specific editor */
     void ExecuteSaveParsedJson(TWeakPtr<FBlueprintEditor> InEditor);
