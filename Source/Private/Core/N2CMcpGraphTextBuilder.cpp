@@ -136,15 +136,22 @@ FString FN2CMcpGraphTextBuilder::FormatSourcePinName(const UEdGraphPin* Pin)
         return TEXT("(UnknownPin)");
     }
 
-    if (Pin->PinType.PinCategory == UEdGraphSchema_K2::PC_Exec)
-    {
-        return TEXT("(ThisNode)");
-    }
-
     FString PinName = Pin->GetDisplayName().ToString();
     if (PinName.IsEmpty())
     {
         PinName = Pin->PinName.ToString();
+    }
+
+    if (Pin->PinType.PinCategory == UEdGraphSchema_K2::PC_Exec)
+    {
+        if (PinName.IsEmpty() || IsGenericExecPinName(PinName))
+        {
+            return TEXT("(ThisNode)");
+        }
+
+        return PinName.Contains(TEXT(" "))
+            ? FString::Printf(TEXT("`%s`"), *PinName)
+            : PinName;
     }
 
     if (PinName.IsEmpty())
