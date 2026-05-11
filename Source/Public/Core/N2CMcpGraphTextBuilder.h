@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 
 class UK2Node;
+class UEdGraph;
 class UEdGraphNode;
 class UEdGraphPin;
 
@@ -16,7 +17,7 @@ class NODETOCODE_API FN2CMcpGraphTextBuilder
 {
 public:
     /** Build the human-readable graph text from collected K2 nodes. */
-    static bool BuildGraphTextFromNodes(const TArray<UK2Node*>& Nodes, FString& OutText, FString& OutError);
+    static bool BuildGraphTextFromNodes(UEdGraph* Graph, const TArray<UK2Node*>& Nodes, FString& OutText, FString& OutError);
 
 private:
     static void AppendNodeGraphTextLines(UK2Node* Node, TArray<FString>& OutLines);

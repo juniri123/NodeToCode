@@ -10,6 +10,7 @@
 #include "LLM/IN2CLLMService.h"
 
 class UK2Node;
+class UEdGraph;
 
 /**
  * @class FN2CEditorIntegration
@@ -70,7 +71,7 @@ private:
     void ExecuteSaveMcpGraphText(TWeakPtr<FBlueprintEditor> InEditor);
 
     /** Save independent MCP-style graph text for a specific collected graph */
-    bool SaveMcpGraphTextFile(const TArray<UK2Node*>& CollectedNodes, const FString& SafeGraphName, const FString& FlowDir) const;
+    bool SaveMcpGraphTextFile(UEdGraph* Graph, const TArray<UK2Node*>& CollectedNodes, const FString& SafeGraphName, const FString& FlowDir) const;
 
     /** Execute save parsed JSON file for a specific editor */
     void ExecuteSaveParsedJson(TWeakPtr<FBlueprintEditor> InEditor);

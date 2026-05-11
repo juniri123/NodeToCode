@@ -10,7 +10,7 @@
 #include "Utils/Processors/N2CBaseNodeProcessor.h"
 #include "Utils/Processors/N2CNodeProcessorFactory.h"
 
-bool FN2CMcpGraphTextBuilder::BuildGraphTextFromNodes(const TArray<UK2Node*>& Nodes, FString& OutText, FString& OutError)
+bool FN2CMcpGraphTextBuilder::BuildGraphTextFromNodes(UEdGraph* Graph, const TArray<UK2Node*>& Nodes, FString& OutText, FString& OutError)
 {
     if (Nodes.Num() == 0)
     {
@@ -18,19 +18,9 @@ bool FN2CMcpGraphTextBuilder::BuildGraphTextFromNodes(const TArray<UK2Node*>& No
         return false;
     }
 
-    UEdGraph* Graph = nullptr;
-    for (UK2Node* Node : Nodes)
-    {
-        if (Node && Node->GetGraph())
-        {
-            Graph = Node->GetGraph();
-            break;
-        }
-    }
-
     if (!Graph)
     {
-        OutError = TEXT("No valid graph found for nodes");
+        OutError = TEXT("No graph provided");
         return false;
     }
 

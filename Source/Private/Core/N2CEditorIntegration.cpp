@@ -770,6 +770,9 @@ void FN2CEditorIntegration::ExecuteInspectBlueprintAuraMCP(TWeakPtr<FBlueprintEd
 
 bool FN2CEditorIntegration::ExecuteSaveParsedFlowFiles(TWeakPtr<FBlueprintEditor> InEditor)
 {
+    TSharedPtr<FBlueprintEditor> Editor = InEditor.Pin();
+    UEdGraph* FocusedGraph = Editor.IsValid() ? Editor->GetFocusedGraph() : nullptr;
+
     TArray<UK2Node*> CollectedNodes;
     FString SafeGraphName;
     FString RootPath;
@@ -849,7 +852,7 @@ bool FN2CEditorIntegration::ExecuteSaveParsedFlowFiles(TWeakPtr<FBlueprintEditor
         FN2CLogger::Get().LogError(FString::Printf(TEXT("Failed to save flow text: %s"), *FlowTextPath));
         return false;
     }
-    if (!SaveMcpGraphTextFile(CollectedNodes, SafeGraphName, FlowDir))
+    if (!SaveMcpGraphTextFile(FocusedGraph, CollectedNodes, SafeGraphName, FlowDir))
     {
         return false;
     }
@@ -865,6 +868,9 @@ bool FN2CEditorIntegration::ExecuteSaveParsedFlowFiles(TWeakPtr<FBlueprintEditor
 
 void FN2CEditorIntegration::ExecuteSaveMcpGraphText(TWeakPtr<FBlueprintEditor> InEditor)
 {
+    TSharedPtr<FBlueprintEditor> Editor = InEditor.Pin();
+    UEdGraph* FocusedGraph = Editor.IsValid() ? Editor->GetFocusedGraph() : nullptr;
+
     TArray<UK2Node*> CollectedNodes;
     FString SafeGraphName;
     FString RootPath;
@@ -874,7 +880,7 @@ void FN2CEditorIntegration::ExecuteSaveMcpGraphText(TWeakPtr<FBlueprintEditor> I
         return;
     }
 
-    if (!SaveMcpGraphTextFile(CollectedNodes, SafeGraphName, FlowDir))
+    if (!SaveMcpGraphTextFile(FocusedGraph, CollectedNodes, SafeGraphName, FlowDir))
     {
         return;
     }
@@ -887,11 +893,11 @@ void FN2CEditorIntegration::ExecuteSaveMcpGraphText(TWeakPtr<FBlueprintEditor> I
     FSlateNotificationManager::Get().AddNotification(Info);
 }
 
-bool FN2CEditorIntegration::SaveMcpGraphTextFile(const TArray<UK2Node*>& CollectedNodes, const FString& SafeGraphName, const FString& FlowDir) const
+bool FN2CEditorIntegration::SaveMcpGraphTextFile(UEdGraph* Graph, const TArray<UK2Node*>& CollectedNodes, const FString& SafeGraphName, const FString& FlowDir) const
 {
     FString GraphText;
     FString GraphTextError;
-    if (!FN2CMcpGraphTextBuilder::BuildGraphTextFromNodes(CollectedNodes, GraphText, GraphTextError))
+    if (!FN2CMcpGraphTextBuilder::BuildGraphTextFromNodes(Graph, CollectedNodes, GraphText, GraphTextError))
     {
         FN2CLogger::Get().LogError(FString::Printf(TEXT("Failed to build MCP graph text: %s"), *GraphTextError));
         return false;
