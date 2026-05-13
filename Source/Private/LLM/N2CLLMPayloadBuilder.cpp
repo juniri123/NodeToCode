@@ -262,7 +262,9 @@ void UN2CLLMPayloadBuilder::SetJsonResponseFormat(const TSharedPtr<FJsonObject>&
                     // Skip setting response_format for these models
                     FN2CLogger::Get().Log(TEXT("Response format not supported for o1-preview/o1-mini, skipping"), EN2CLogSeverity::Debug);
                 }
-                else if (ModelName.StartsWith(TEXT("o1")) || ModelName.StartsWith(TEXT("o3")))
+                //else if (ModelName.StartsWith(TEXT("o1")) || ModelName.StartsWith(TEXT("o3")))
+                // o3에서 json_schma가 지원이 되는데?
+                else if (ModelName.StartsWith(TEXT("o1")))
                 {
                     // Other o1/o3 models use json_object type without schema
                     TSharedPtr<FJsonObject> ResponseFormatObject = MakeShared<FJsonObject>();
