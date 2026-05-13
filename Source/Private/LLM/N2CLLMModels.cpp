@@ -4,16 +4,29 @@
 #include "LLM/N2CLLMPricing.h"
 
 // Initialize static pricing maps
-const TMap<EN2COpenAIModel, FN2COpenAIPricing> FN2CLLMModelUtils::OpenAIPricing = {
-    {EN2COpenAIModel::GPT4o_2024_08_06, FN2COpenAIPricing(2.5f, 10.0f)},
-    {EN2COpenAIModel::GPT4o_Mini_2024_07_18, FN2COpenAIPricing(0.15f, 0.6f)},
-    {EN2COpenAIModel::GPT_4_1, FN2COpenAIPricing(2.0f, 8.0f)},
-    {EN2COpenAIModel::GPT_o1, FN2COpenAIPricing(15.0f, 60.0f)},
-    {EN2COpenAIModel::GPT_o1_Preview, FN2COpenAIPricing(15.0f, 60.0f)},
-    {EN2COpenAIModel::GPT_o1_Mini, FN2COpenAIPricing(1.1f, 4.4f)},
-    {EN2COpenAIModel::GPT_o3, FN2COpenAIPricing(10.0f, 40.0f)},
-    {EN2COpenAIModel::GPT_o3_mini, FN2COpenAIPricing(1.1f, 4.4f)},
-    {EN2COpenAIModel::GPT_o4_mini, FN2COpenAIPricing(1.0f, 4.0f)}
+const TMap<EN2COpenAIModel, FN2COpenAIModelInfo> FN2CLLMModelUtils::OpenAIModelInfo = {
+    {EN2COpenAIModel::GPT_5_5, FN2COpenAIModelInfo(128000, 128000, 5.0f, 30.0f)},
+    {EN2COpenAIModel::GPT_5_4, FN2COpenAIModelInfo(128000, 128000, 2.5f, 15.0f)},
+    {EN2COpenAIModel::GPT_5_4_Mini, FN2COpenAIModelInfo(128000, 128000, 0.75f, 4.5f)},
+    {EN2COpenAIModel::GPT_5_4_Nano, FN2COpenAIModelInfo(128000, 128000, 0.20f, 1.25f)},
+    {EN2COpenAIModel::GPT_5_2, FN2COpenAIModelInfo(128000, 128000, 1.75f, 14.0f)},
+    {EN2COpenAIModel::GPT_5_1, FN2COpenAIModelInfo(128000, 128000, 1.25f, 10.0f)},
+    {EN2COpenAIModel::GPT_5, FN2COpenAIModelInfo(128000, 128000, 1.25f, 10.0f)},
+
+    {EN2COpenAIModel::GPT_o4_mini, FN2COpenAIModelInfo(100000, 100000, 1.1f, 4.4f)},
+    {EN2COpenAIModel::GPT_o3, FN2COpenAIModelInfo(100000, 100000, 2.0f, 8.0f)},
+    {EN2COpenAIModel::GPT_o3_mini, FN2COpenAIModelInfo(100000, 100000, 1.1f, 4.4f)},
+
+    {EN2COpenAIModel::GPT_o1, FN2COpenAIModelInfo(100000, 100000, 15.0f, 60.0f)},
+    {EN2COpenAIModel::GPT_o1_Preview, FN2COpenAIModelInfo(32768, 32768, 15.0f, 60.0f)},
+    {EN2COpenAIModel::GPT_o1_Mini, FN2COpenAIModelInfo(65536, 65536, 1.1f, 4.4f)},
+
+    {EN2COpenAIModel::GPT_4_1, FN2COpenAIModelInfo(32768, 32768, 2.0f, 8.0f)},
+    {EN2COpenAIModel::GPT_4_1_Mini, FN2COpenAIModelInfo(32768, 32768, 0.40f, 1.60f)},
+    {EN2COpenAIModel::GPT_4_1_Nano, FN2COpenAIModelInfo(32768, 32768, 0.10f, 0.40f)},
+
+    {EN2COpenAIModel::GPT4o_2024_08_06, FN2COpenAIModelInfo(16384, 16384, 2.5f, 10.0f)},
+    {EN2COpenAIModel::GPT4o_Mini_2024_07_18, FN2COpenAIModelInfo(16384, 16384, 0.15f, 0.6f)}
 };
 
 const TMap<EN2CGeminiModel, FN2CGeminiPricing> FN2CLLMModelUtils::GeminiPricing = {
@@ -161,13 +174,13 @@ FString FN2CLLMModelUtils::GetDeepSeekModelValue(EN2CDeepSeekModel Model)
     }
 }
 
-FN2COpenAIPricing FN2CLLMModelUtils::GetOpenAIPricing(EN2COpenAIModel Model)
+FN2COpenAIModelInfo FN2CLLMModelUtils::GetOpenAIModelInfo(EN2COpenAIModel Model)
 {
-    if (const FN2COpenAIPricing* Found = OpenAIPricing.Find(Model))
+    if (const FN2COpenAIModelInfo* Found = OpenAIModelInfo.Find(Model))
     {
         return *Found;
     }
-    return FN2COpenAIPricing();
+    return FN2COpenAIModelInfo();
 }
 
 FN2CAnthropicPricing FN2CLLMModelUtils::GetAnthropicPricing(EN2CAnthropicModel Model)

@@ -463,19 +463,19 @@ public:
     FString LMStudioPrependedModelCommand = "";
     
     /** OpenAI Model Pricing */
-    UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Node to Code | LLM Services | Pricing | OpenAI", DisplayName = "OpenAI Model Pricing")
-    TMap<EN2COpenAIModel, FN2COpenAIPricing> OpenAIModelPricing;
+    UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Node to Code | LLM Services | ModelInfo | OpenAI", DisplayName = "OpenAI Model Info")
+    TMap<EN2COpenAIModel, FN2COpenAIModelInfo> OpenAIModelInfo;
 
     /** Anthropic Model Pricing */
-    UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Node to Code | LLM Services | Pricing | Anthropic")
+    UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Node to Code | LLM Services | ModelInfo | Anthropic")
     TMap<EN2CAnthropicModel, FN2CAnthropicPricing> AnthropicModelPricing;
 
     /** Gemini Model Pricing */
-    UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Node to Code | LLM Services | Pricing | Gemini")
+    UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Node to Code | LLM Services | ModelInfo | Gemini")
     TMap<EN2CGeminiModel, FN2CGeminiPricing> GeminiModelPricing;
 
     /** DeepSeek Model Pricing */
-    UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Node to Code | LLM Services | Pricing | DeepSeek")
+    UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Node to Code | LLM Services | ModelInfo | DeepSeek")
     TMap<EN2CDeepSeekModel, FN2CDeepSeekPricing> DeepSeekModelPricing;
     
     /** Target programming language for translation */
@@ -549,11 +549,11 @@ public:
         switch (Provider)
         {
             case EN2CLLMProvider::OpenAI:
-                if (const FN2COpenAIPricing* Pricing = OpenAIModelPricing.Find(OpenAI_Model))
+                if (const FN2COpenAIModelInfo* ModelInfo = OpenAIModelInfo.Find(OpenAI_Model))
                 {
-                    return Pricing->InputCost;
+                    return ModelInfo->InputCost;
                 }
-                return FN2CLLMModelUtils::GetOpenAIPricing(OpenAI_Model).InputCost;
+                return FN2CLLMModelUtils::GetOpenAIModelInfo(OpenAI_Model).InputCost;
             case EN2CLLMProvider::Anthropic:
                 if (const FN2CAnthropicPricing* Pricing = AnthropicModelPricing.Find(AnthropicModel))
                 {
@@ -581,11 +581,11 @@ public:
         switch (Provider)
         {
             case EN2CLLMProvider::OpenAI:
-                if (const FN2COpenAIPricing* Pricing = OpenAIModelPricing.Find(OpenAI_Model))
+                if (const FN2COpenAIModelInfo* ModelInfo = OpenAIModelInfo.Find(OpenAI_Model))
                 {
-                    return Pricing->OutputCost;
+                    return ModelInfo->OutputCost;
                 }
-                return FN2CLLMModelUtils::GetOpenAIPricing(OpenAI_Model).OutputCost;
+                return FN2CLLMModelUtils::GetOpenAIModelInfo(OpenAI_Model).OutputCost;
             case EN2CLLMProvider::Anthropic:
                 if (const FN2CAnthropicPricing* Pricing = AnthropicModelPricing.Find(AnthropicModel))
                 {

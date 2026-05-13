@@ -2,6 +2,7 @@
 
 #include "LLM/Providers/N2COpenAIService.h"
 
+#include "Core/N2CSettings.h"
 #include "LLM/N2CLLMModels.h"
 #include "LLM/N2CSystemPromptManager.h"
 
@@ -68,11 +69,14 @@ FString UN2COpenAIService::FormatRequestPayload(const FString& UserMessage, cons
     // Set common parameters
     // Note: Temperature is not supported for o1/o3 models, but the payload builder will handle this
     PayloadBuilder->SetTemperature(0.0f);
-    // Note: For o-series reasoning models (o1/o3/o4-mini), this value maps to
-    // max_completion_tokens which is shared between reasoning_tokens and visible output.
-    // 8192 was too low — reasoning alone consumed the entire budget, leaving 0 for content
-    // (finish_reason="length", empty content). Bumped to 32768 for headroom.
-    PayloadBuilder->SetMaxTokens(128000);
+    // open ai에서만 max token 설정을 넣어놔서 함수로 빼놓기가 애매함. 일단 하드 코딩함
+    const UN2CSettings* Settings = GetDefault<UN2CSettings>();
+    int MaxTokens = FN2CLLMModelUtils::GetOpenAIModelInfo(Settings->OpenAI_Model).DefaultMaxOutputTokens;
+    if (MaxTokens == 0 || Settings->OpenAIModelInfo.Contains(Settings->OpenAI_Model))
+    {
+        MaxTokens = Settings->OpenAIModelInfo.Find(Settings->OpenAI_Model)->DefaultMaxOutputTokens;        
+    }
+    PayloadBuilder->SetMaxTokens(MaxTokens);
     
     // Add JSON response format for models that support it
     // The payload builder will handle the differences between model types

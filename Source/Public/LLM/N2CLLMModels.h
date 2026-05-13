@@ -83,7 +83,7 @@ struct FN2CLLMModelUtils
     static FString GetDeepSeekModelValue(EN2CDeepSeekModel Model);
 
     /** Pricing getters */
-    static FN2COpenAIPricing GetOpenAIPricing(EN2COpenAIModel Model);
+    static FN2COpenAIModelInfo GetOpenAIModelInfo(EN2COpenAIModel Model);
     static FN2CAnthropicPricing GetAnthropicPricing(EN2CAnthropicModel Model);
     static FN2CDeepSeekPricing GetDeepSeekPricing(EN2CDeepSeekModel Model);
     static FN2CGeminiPricing GetGeminiPricing(EN2CGeminiModel Model);
@@ -106,7 +106,7 @@ struct FN2CLLMModelUtils
 
 private:
     /** Static pricing maps */
-    static const TMap<EN2COpenAIModel, FN2COpenAIPricing> OpenAIPricing;
+    static const TMap<EN2COpenAIModel, FN2COpenAIModelInfo> OpenAIModelInfo;
     static const TMap<EN2CAnthropicModel, FN2CAnthropicPricing> AnthropicPricing;
     static const TMap<EN2CDeepSeekModel, FN2CDeepSeekPricing> DeepSeekPricing;
     static const TMap<EN2CGeminiModel, FN2CGeminiPricing> GeminiPricing;

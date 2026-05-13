@@ -151,24 +151,24 @@ void UN2CSettings::CopyToClipboard(const FString& Text)
 void UN2CSettings::InitializePricing()
 {
     // Initialize default pricing
-    OpenAIModelPricing.Add(EN2COpenAIModel::GPT_5_5, FN2COpenAIPricing(5.0f, 30.0f));
-    OpenAIModelPricing.Add(EN2COpenAIModel::GPT_5_4, FN2COpenAIPricing(2.5f, 15.0f));
-    OpenAIModelPricing.Add(EN2COpenAIModel::GPT_5_4_Mini, FN2COpenAIPricing(0.75f, 4.5f));
-    OpenAIModelPricing.Add(EN2COpenAIModel::GPT_5_4_Nano, FN2COpenAIPricing(0.20f, 1.25f));
-    OpenAIModelPricing.Add(EN2COpenAIModel::GPT_5_2, FN2COpenAIPricing(1.75f, 14.0f));
-    OpenAIModelPricing.Add(EN2COpenAIModel::GPT_5_1, FN2COpenAIPricing(1.25f, 10.0f));
-    OpenAIModelPricing.Add(EN2COpenAIModel::GPT_5, FN2COpenAIPricing(1.25f, 10.0f));
-    OpenAIModelPricing.Add(EN2COpenAIModel::GPT_o4_mini, FN2COpenAIPricing(1.1f, 4.4f));
-    OpenAIModelPricing.Add(EN2COpenAIModel::GPT_o3, FN2COpenAIPricing(15.0f, 60.0f));
-    OpenAIModelPricing.Add(EN2COpenAIModel::GPT_o3_mini, FN2COpenAIPricing(1.1f, 4.4f));
-    OpenAIModelPricing.Add(EN2COpenAIModel::GPT_o1, FN2COpenAIPricing(15.0f, 60.0f));
-    OpenAIModelPricing.Add(EN2COpenAIModel::GPT_o1_Preview, FN2COpenAIPricing(15.0f, 60.0f));
-    OpenAIModelPricing.Add(EN2COpenAIModel::GPT_o1_Mini, FN2COpenAIPricing(1.1f, 4.4f));
-    OpenAIModelPricing.Add(EN2COpenAIModel::GPT_4_1, FN2COpenAIPricing(2.0f, 8.0f));
-    OpenAIModelPricing.Add(EN2COpenAIModel::GPT_4_1_Mini, FN2COpenAIPricing(0.40f, 1.60f));
-    OpenAIModelPricing.Add(EN2COpenAIModel::GPT_4_1_Nano, FN2COpenAIPricing(0.10f, 0.40f));
-    OpenAIModelPricing.Add(EN2COpenAIModel::GPT4o_2024_08_06, FN2COpenAIPricing(2.5f, 10.0f));
-    OpenAIModelPricing.Add(EN2COpenAIModel::GPT4o_Mini_2024_07_18, FN2COpenAIPricing(0.15f, 0.6f));
+    OpenAIModelInfo.Add(EN2COpenAIModel::GPT_5_5, FN2COpenAIModelInfo(128000, 128000, 5.0f, 30.0f));
+    OpenAIModelInfo.Add(EN2COpenAIModel::GPT_5_4, FN2COpenAIModelInfo(128000, 128000, 2.5f, 15.0f));
+    OpenAIModelInfo.Add(EN2COpenAIModel::GPT_5_4_Mini, FN2COpenAIModelInfo(128000, 128000, 0.75f, 4.5f));
+    OpenAIModelInfo.Add(EN2COpenAIModel::GPT_5_4_Nano, FN2COpenAIModelInfo(128000, 128000, 0.20f, 1.25f));
+    OpenAIModelInfo.Add(EN2COpenAIModel::GPT_5_2, FN2COpenAIModelInfo(128000, 128000, 1.75f, 14.0f));
+    OpenAIModelInfo.Add(EN2COpenAIModel::GPT_5_1, FN2COpenAIModelInfo(128000, 128000, 1.25f, 10.0f));
+    OpenAIModelInfo.Add(EN2COpenAIModel::GPT_5, FN2COpenAIModelInfo(128000, 128000, 1.25f, 10.0f));
+    OpenAIModelInfo.Add(EN2COpenAIModel::GPT_o4_mini, FN2COpenAIModelInfo(100000, 100000, 1.1f, 4.4f));
+    OpenAIModelInfo.Add(EN2COpenAIModel::GPT_o3, FN2COpenAIModelInfo(100000, 100000, 2.0f, 8.0f));
+    OpenAIModelInfo.Add(EN2COpenAIModel::GPT_o3_mini, FN2COpenAIModelInfo(100000, 100000, 1.1f, 4.4f));
+    OpenAIModelInfo.Add(EN2COpenAIModel::GPT_o1, FN2COpenAIModelInfo(100000, 100000, 15.0f, 60.0f));
+    OpenAIModelInfo.Add(EN2COpenAIModel::GPT_o1_Preview, FN2COpenAIModelInfo(32768, 32768, 15.0f, 60.0f));
+    OpenAIModelInfo.Add(EN2COpenAIModel::GPT_o1_Mini, FN2COpenAIModelInfo(65536, 65536, 1.1f, 4.4f));
+    OpenAIModelInfo.Add(EN2COpenAIModel::GPT_4_1, FN2COpenAIModelInfo(32768, 32768, 2.0f, 8.0f));
+    OpenAIModelInfo.Add(EN2COpenAIModel::GPT_4_1_Mini, FN2COpenAIModelInfo(32768, 32768, 0.40f, 1.60f));
+    OpenAIModelInfo.Add(EN2COpenAIModel::GPT_4_1_Nano, FN2COpenAIModelInfo(32768, 32768, 0.10f, 0.40f));
+    OpenAIModelInfo.Add(EN2COpenAIModel::GPT4o_2024_08_06, FN2COpenAIModelInfo(16384, 16384, 2.5f, 10.0f));
+    OpenAIModelInfo.Add(EN2COpenAIModel::GPT4o_Mini_2024_07_18, FN2COpenAIModelInfo(16384, 16384, 0.15f, 0.6f));
 
     AnthropicModelPricing.Add(EN2CAnthropicModel::Claude4_Opus, FN2CAnthropicPricing(15.0f, 75.0f));
     AnthropicModelPricing.Add(EN2CAnthropicModel::Claude4_Sonnet, FN2CAnthropicPricing(3.0f, 15.0f));
