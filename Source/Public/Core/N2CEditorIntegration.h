@@ -68,23 +68,14 @@ private:
     bool ExecuteSaveAnalysisFiles(TWeakPtr<FBlueprintEditor> InEditor);
 
     /** Save parsed/flow files for a specific collected graph */
-    bool SaveParsedFlowFiles(const TArray<UK2Node*>& CollectedNodes, const FString& SafeGraphName, const FString& FlowDir) const;
+    bool SaveParsedFlowFiles(const struct FN2CFlowData& FlowData, const TArray<UK2Node*>& CollectedNodes, const FString& SafeGraphName, const FString& FlowDir) const;
 
     /** Save independent MCP-style graph text for a specific collected graph */
-    bool SaveMcpGraphTextFile(UEdGraph* Graph, const TArray<UK2Node*>& CollectedNodes, const FString& SafeGraphName, const FString& FlowDir) const;
+    bool SaveMcpGraphTextFile(const struct FN2CFlowData& FlowData,  UEdGraph* Graph, const TArray<UK2Node*>& CollectedNodes, const FString& SafeGraphName, const FString& FlowDir) const;
 
     /** Save independent MCP-style struct text for a specific collected graph */
     bool SaveMcpStructTextFile(UEdGraph* Graph, const TArray<UK2Node*>& CollectedNodes, const FString& SafeGraphName, const FString& FlowDir) const;
-
-    /** Execute save parsed JSON file for a specific editor */
-    void ExecuteSaveParsedJson(TWeakPtr<FBlueprintEditor> InEditor);
-
-    /** Execute save flow JSON file for a specific editor */
-    void ExecuteSaveFlowJson(TWeakPtr<FBlueprintEditor> InEditor);
-
-    /** Execute save flow text file for a specific editor */
-    void ExecuteSaveFlowText(TWeakPtr<FBlueprintEditor> InEditor);
-
+    
     /** Execute open save folder for a specific editor */
     void ExecuteOpenSaveFolder(TWeakPtr<FBlueprintEditor> InEditor);
 

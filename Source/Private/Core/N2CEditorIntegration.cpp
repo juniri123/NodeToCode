@@ -208,6 +208,8 @@ namespace
     bool PrepareSaveContext(
         TWeakPtr<FBlueprintEditor> InEditor,
         TArray<UK2Node*>& OutCollectedNodes,
+        UBlueprint*& OutBlueprint,
+        UEdGraph*& OutFocusedGraph,
         FString& OutSafeGraphName,
         FString& OutRootPath,
         FString& OutFlowDir)
@@ -218,24 +220,30 @@ namespace
             FN2CLogger::Get().LogError(TEXT("Invalid Blueprint Editor pointer"));
             return false;
         }
-
+        
         UEdGraph* FocusedGraph = Editor->GetFocusedGraph();
         if (!FocusedGraph)
         {
             FN2CLogger::Get().LogError(TEXT("No focused graph in Blueprint Editor"));
             return false;
         }
+        OutFocusedGraph = FocusedGraph;
 
-        FString BlueprintName = TEXT("Unknown");
-        FString ChangeList;
-        if (UBlueprint* Blueprint = Cast<UBlueprint>(FocusedGraph->GetOuter()))
+        
+        UBlueprint* Blueprint = Cast<UBlueprint>(FocusedGraph->GetOuter());
+        if (!Blueprint)
         {
-            BlueprintName = Blueprint->GetName();
-            ChangeList = GetBlueprintChangeListNumber(Blueprint);
-            if (!ChangeList.IsEmpty())
-            {
-                UN2CLLMModule::Get()->SetPendingBlueprintChangeList(ChangeList);
-            }
+            FN2CLogger::Get().LogError(TEXT("Failed to resolve Blueprint for inspect request"));
+            return false;
+        }
+        OutBlueprint = Blueprint;
+        
+        FString BlueprintName = TEXT("Unknown");
+        BlueprintName = Blueprint->GetName();
+        FString ChangeList = GetBlueprintChangeListNumber(Blueprint);
+        if (!ChangeList.IsEmpty())
+        {
+            UN2CLLMModule::Get()->SetPendingBlueprintChangeList(ChangeList);
         }
 
         FN2CNodeCollector& Collector = FN2CNodeCollector::Get();
@@ -384,10 +392,12 @@ void FN2CEditorIntegration::ExecuteCopyJsonForEditor(TWeakPtr<FBlueprintEditor> 
 void FN2CEditorIntegration::ExecuteSaveJson(TWeakPtr<FBlueprintEditor> InEditor)
 {
     TArray<UK2Node*> CollectedNodes;
+    UBlueprint* Blueprint = nullptr;
+    UEdGraph* FocusedGraph = nullptr;
     FString SafeGraphName;
     FString RootPath;
     FString FlowDir;
-    if (!PrepareSaveContext(InEditor, CollectedNodes, SafeGraphName, RootPath, FlowDir))
+    if (!PrepareSaveContext(InEditor, CollectedNodes, Blueprint, FocusedGraph, SafeGraphName, RootPath, FlowDir))
     {
         return;
     }
@@ -399,15 +409,15 @@ void FN2CEditorIntegration::ExecuteSaveJson(TWeakPtr<FBlueprintEditor> InEditor)
         return;
     }
 
-    const FN2CBlueprint& Blueprint = Translator.GetN2CBlueprint();
-    if (!Blueprint.IsValid())
+    const FN2CBlueprint& N2CBlueprint = Translator.GetN2CBlueprint();
+    if (!N2CBlueprint.IsValid())
     {
         FN2CLogger::Get().LogError(TEXT("Generated Blueprint JSON data is invalid"));
         return;
     }
 
     FN2CSerializer::SetPrettyPrint(true);
-    const FString JsonOutput = FN2CSerializer::ToJson(Blueprint);
+    const FString JsonOutput = FN2CSerializer::ToJson(N2CBlueprint);
     if (JsonOutput.IsEmpty())
     {
         FN2CLogger::Get().LogError(TEXT("Blueprint JSON serialization failed"));
@@ -432,10 +442,12 @@ void FN2CEditorIntegration::ExecuteSaveJson(TWeakPtr<FBlueprintEditor> InEditor)
 void FN2CEditorIntegration::ExecuteOpenSaveFolder(TWeakPtr<FBlueprintEditor> InEditor)
 {
     TArray<UK2Node*> CollectedNodes;
+    UBlueprint* Blueprint = nullptr;    
+    UEdGraph* FocusedGraph = nullptr;
     FString SafeGraphName;
     FString RootPath;
     FString FlowDir;
-    if (!PrepareSaveContext(InEditor, CollectedNodes, SafeGraphName, RootPath, FlowDir))
+    if (!PrepareSaveContext(InEditor, CollectedNodes, Blueprint, FocusedGraph, SafeGraphName, RootPath, FlowDir))
     {
         return;
     }
@@ -466,18 +478,18 @@ void FN2CEditorIntegration::ExecuteBp2CppUsingMCP(TWeakPtr<FBlueprintEditor> InE
         return;
     }
 
-    UEdGraph* FocusedGraph = Editor->GetFocusedGraph();
-    if (!FocusedGraph)
+    TArray<UK2Node*> CollectedNodes;
+    UBlueprint* Blueprint = nullptr;
+    UEdGraph* FocusedGraph = nullptr;
+    FString SafeGraphName;
+    FString RootPath;
+    FString FlowDir;
+    if (!PrepareSaveContext(InEditor, CollectedNodes, Blueprint, FocusedGraph, SafeGraphName, RootPath, FlowDir))
     {
-        FN2CLogger::Get().LogError(TEXT("No focused graph in Blueprint Editor"));
         return;
     }
 
-    FString BlueprintName = TEXT("Unknown");
-    if (UBlueprint* Blueprint = Cast<UBlueprint>(FocusedGraph->GetOuter()))
-    {
-        BlueprintName = Blueprint->GetName();
-    }
+    FString BlueprintName = Blueprint->GetName();
 
     const UN2CSettings* Settings = GetDefault<UN2CSettings>();
     if (!Settings)
@@ -487,15 +499,6 @@ void FN2CEditorIntegration::ExecuteBp2CppUsingMCP(TWeakPtr<FBlueprintEditor> InE
     }
 
     if (!ExecuteSaveAnalysisFiles(InEditor))
-    {
-        return;
-    }
-
-    TArray<UK2Node*> CollectedNodes;
-    FString SafeGraphName;
-    FString RootPath;
-    FString FlowDir;
-    if (!PrepareSaveContext(InEditor, CollectedNodes, SafeGraphName, RootPath, FlowDir))
     {
         return;
     }
@@ -536,15 +539,15 @@ void FN2CEditorIntegration::ExecuteBp2CppUsingMCP(TWeakPtr<FBlueprintEditor> InE
             return;
         }
 
-        const FN2CBlueprint& Blueprint = Translator.GetN2CBlueprint();
-        if (!Blueprint.IsValid())
+        const FN2CBlueprint& N2CBlueprint = Translator.GetN2CBlueprint();
+        if (!N2CBlueprint.IsValid())
         {
             FN2CLogger::Get().LogError(TEXT("Generated Blueprint JSON data is invalid (MCP)"));
             return;
         }
 
         FN2CSerializer::SetPrettyPrint(true);
-        BlueprintJson = FN2CSerializer::ToJson(Blueprint);
+        BlueprintJson = FN2CSerializer::ToJson(N2CBlueprint);
         if (BlueprintJson.IsEmpty())
         {
             FN2CLogger::Get().LogError(TEXT("Blueprint JSON serialization failed (MCP)"));
@@ -673,30 +676,18 @@ void FN2CEditorIntegration::ExecuteInspectBlueprintAuraMCP(TWeakPtr<FBlueprintEd
         FN2CLogger::Get().LogError(TEXT("Invalid Blueprint Editor pointer"));
         return;
     }
-
-    UEdGraph* FocusedGraph = Editor->GetFocusedGraph();
-    if (!FocusedGraph)
-    {
-        FN2CLogger::Get().LogError(TEXT("No focused graph in Blueprint Editor"));
-        return;
-    }
-
-    UBlueprint* Blueprint = Cast<UBlueprint>(FocusedGraph->GetOuter());
-    if (!Blueprint)
-    {
-        FN2CLogger::Get().LogError(TEXT("Failed to resolve Blueprint for inspect request"));
-        return;
-    }
-
+    
     TArray<UK2Node*> CollectedNodes;
+    UBlueprint* Blueprint = nullptr;
+    UEdGraph* FocusedGraph = nullptr;
     FString SafeGraphName;
     FString RootPath;
     FString FlowDir;
-    if (!PrepareSaveContext(InEditor, CollectedNodes, SafeGraphName, RootPath, FlowDir))
+    if (!PrepareSaveContext(InEditor, CollectedNodes, Blueprint, FocusedGraph, SafeGraphName, RootPath, FlowDir))
     {
         return;
     }
-
+    
     const UN2CSettings* Settings = GetDefault<UN2CSettings>();
     if (!Settings)
     {
@@ -799,16 +790,8 @@ void FN2CEditorIntegration::ExecuteInspectBlueprintAuraMCP(TWeakPtr<FBlueprintEd
     );
 }
 
-bool FN2CEditorIntegration::SaveParsedFlowFiles(const TArray<UK2Node*>& CollectedNodes, const FString& SafeGraphName, const FString& FlowDir) const
+bool FN2CEditorIntegration::SaveParsedFlowFiles(const FN2CFlowData& FlowData, const TArray<UK2Node*>& CollectedNodes, const FString& SafeGraphName, const FString& FlowDir) const
 {
-    FN2CFlowData FlowData;
-    FString FlowDataError;
-    if (!FN2CFlowBuilder::BuildFlowDataFromNodes(CollectedNodes, FlowData, FlowDataError))
-    {
-        FN2CLogger::Get().LogError(FString::Printf(TEXT("Failed to build flow data: %s"), *FlowDataError));
-        return false;
-    }
-
     FString ParsedJson;
     FString ParsedJsonError;
     if (!FN2CParsedDumpBuilder::BuildParsedJsonFromNodes(CollectedNodes, ParsedJson, ParsedJsonError, &FlowData.GuidAlias))
@@ -825,6 +808,7 @@ bool FN2CEditorIntegration::SaveParsedFlowFiles(const TArray<UK2Node*>& Collecte
         return false;
     }
 
+    // 재귀 방식
     FString FlowTextV1;
     FString FlowTextErrorV1;
     if (!FN2CFlowBuilder::BuildFlowTextFromNodes(CollectedNodes, FlowTextV1, FlowTextErrorV1))
@@ -833,6 +817,7 @@ bool FN2CEditorIntegration::SaveParsedFlowFiles(const TArray<UK2Node*>& Collecte
         return false;
     }
 
+    // 비재귀 방식
     FString FlowTextV2;
     FString FlowTextErrorV2;
     if (!FN2CFlowBuilder_01::BuildFlowTextFromNodes_01(CollectedNodes, FlowTextV2, FlowTextErrorV2))
@@ -878,23 +863,30 @@ bool FN2CEditorIntegration::SaveParsedFlowFiles(const TArray<UK2Node*>& Collecte
 bool FN2CEditorIntegration::ExecuteSaveAnalysisFiles(TWeakPtr<FBlueprintEditor> InEditor)
 {
     TArray<UK2Node*> CollectedNodes;
+    UBlueprint* Blueprint = nullptr;
+    UEdGraph* FocusedGraph = nullptr;
     FString SafeGraphName;
     FString RootPath;
     FString FlowDir;
-    if (!PrepareSaveContext(InEditor, CollectedNodes, SafeGraphName, RootPath, FlowDir))
+    if (!PrepareSaveContext(InEditor, CollectedNodes, Blueprint, FocusedGraph, SafeGraphName, RootPath, FlowDir))
     {
         return false;
     }
 
-    TSharedPtr<FBlueprintEditor> Editor = InEditor.Pin();
-    UEdGraph* FocusedGraph = Editor.IsValid() ? Editor->GetFocusedGraph() : nullptr;
-
-    if (!SaveParsedFlowFiles(CollectedNodes, SafeGraphName, FlowDir))
+    FN2CFlowData FlowData;
+    FString FlowDataError;
+    if (!FN2CFlowBuilder::BuildFlowDataFromNodes(CollectedNodes, FlowData, FlowDataError))
+    {
+        FN2CLogger::Get().LogError(FString::Printf(TEXT("Failed to build flow data: %s"), *FlowDataError));
+        return false;
+    }
+    
+    if (!SaveParsedFlowFiles(FlowData, CollectedNodes, SafeGraphName, FlowDir))
     {
         return false;
     }
 
-    if (!SaveMcpGraphTextFile(FocusedGraph, CollectedNodes, SafeGraphName, FlowDir))
+    if (!SaveMcpGraphTextFile(FlowData, FocusedGraph, CollectedNodes, SafeGraphName, FlowDir))
     {
         return false;
     }
@@ -913,11 +905,11 @@ bool FN2CEditorIntegration::ExecuteSaveAnalysisFiles(TWeakPtr<FBlueprintEditor> 
     return true;
 }
 
-bool FN2CEditorIntegration::SaveMcpGraphTextFile(UEdGraph* Graph, const TArray<UK2Node*>& CollectedNodes, const FString& SafeGraphName, const FString& FlowDir) const
+bool FN2CEditorIntegration::SaveMcpGraphTextFile(const FN2CFlowData& FlowData, UEdGraph* Graph, const TArray<UK2Node*>& CollectedNodes, const FString& SafeGraphName, const FString& FlowDir) const
 {
     FString GraphText;
     FString GraphTextError;
-    if (!FN2CMcpGraphTextBuilder::BuildGraphTextFromNodes(Graph, CollectedNodes, GraphText, GraphTextError))
+    if (!FN2CMcpGraphTextBuilder::BuildGraphTextFromNodes(FlowData, Graph, CollectedNodes, GraphText, GraphTextError))
     {
         FN2CLogger::Get().LogError(FString::Printf(TEXT("Failed to build MCP graph text: %s"), *GraphTextError));
         return false;
@@ -953,145 +945,16 @@ bool FN2CEditorIntegration::SaveMcpStructTextFile(UEdGraph* Graph, const TArray<
     return true;
 }
 
-void FN2CEditorIntegration::ExecuteSaveParsedJson(TWeakPtr<FBlueprintEditor> InEditor)
-{
-    TArray<UK2Node*> CollectedNodes;
-    FString SafeGraphName;
-    FString RootPath;
-    FString FlowDir;
-    if (!PrepareSaveContext(InEditor, CollectedNodes, SafeGraphName, RootPath, FlowDir))
-    {
-        return;
-    }
-
-    FString ParsedJson;
-    FString ParsedJsonError;
-    if (!FN2CParsedDumpBuilder::BuildParsedJsonFromNodes(CollectedNodes, ParsedJson, ParsedJsonError))
-    {
-        FN2CLogger::Get().LogError(FString::Printf(TEXT("Failed to build parsed JSON: %s"), *ParsedJsonError));
-        return;
-    }
-
-    const FString ParsedJsonPath = FPaths::Combine(FlowDir, FString::Printf(TEXT("%s_parsed.json"), *SafeGraphName));
-    if (!FFileHelper::SaveStringToFile(ParsedJson, *ParsedJsonPath))
-    {
-        FN2CLogger::Get().LogError(FString::Printf(TEXT("Failed to save parsed JSON: %s"), *ParsedJsonPath));
-        return;
-    }
-
-    FNotificationInfo Info(NSLOCTEXT("NodeToCode", "ParsedSaved", "Parsed JSON file saved"));
-    Info.bFireAndForget = true;
-    Info.FadeInDuration = 0.2f;
-    Info.FadeOutDuration = 0.5f;
-    Info.ExpireDuration = 2.0f;
-    FSlateNotificationManager::Get().AddNotification(Info);
-}
-
-void FN2CEditorIntegration::ExecuteSaveFlowJson(TWeakPtr<FBlueprintEditor> InEditor)
-{
-    TArray<UK2Node*> CollectedNodes;
-    FString SafeGraphName;
-    FString RootPath;
-    FString FlowDir;
-    if (!PrepareSaveContext(InEditor, CollectedNodes, SafeGraphName, RootPath, FlowDir))
-    {
-        return;
-    }
-
-    FString FlowJson;
-    FString FlowJsonError;
-    if (!FN2CFlowBuilder::BuildFlowJsonFromNodes(CollectedNodes, FlowJson, FlowJsonError))
-    {
-        FN2CLogger::Get().LogError(FString::Printf(TEXT("Failed to build flow JSON: %s"), *FlowJsonError));
-        return;
-    }
-
-    const FString FlowJsonPath = FPaths::Combine(FlowDir, FString::Printf(TEXT("%s_flow.json"), *SafeGraphName));
-    if (!FFileHelper::SaveStringToFile(FlowJson, *FlowJsonPath))
-    {
-        FN2CLogger::Get().LogError(FString::Printf(TEXT("Failed to save flow JSON: %s"), *FlowJsonPath));
-        return;
-    }
-
-    FNotificationInfo Info(NSLOCTEXT("NodeToCode", "FlowJsonSaved", "Flow JSON file saved"));
-    Info.bFireAndForget = true;
-    Info.FadeInDuration = 0.2f;
-    Info.FadeOutDuration = 0.5f;
-    Info.ExpireDuration = 2.0f;
-    FSlateNotificationManager::Get().AddNotification(Info);
-}
-
-void FN2CEditorIntegration::ExecuteSaveFlowText(TWeakPtr<FBlueprintEditor> InEditor)
-{
-     // v1 (기존) + v2 (개선) 비교 모드
-    TArray<UK2Node*> CollectedNodes;
-    FString SafeGraphName;
-    FString RootPath;
-    FString FlowDir;
-    if (!PrepareSaveContext(InEditor, CollectedNodes, SafeGraphName, RootPath, FlowDir))
-    {
-        return;
-    }
-
-    // v1: 기존 버전
-    FString FlowTextV1;
-    FString FlowTextErrorV1;
-    if (!FN2CFlowBuilder::BuildFlowTextFromNodes(CollectedNodes, FlowTextV1, FlowTextErrorV1))
-    {
-        FN2CLogger::Get().LogError(FString::Printf(TEXT("Failed to build flow text v1: %s"), *FlowTextErrorV1));
-        return;
-    }
-
-    // v2: 개선 버전 (스택 기반 비재귀)
-    FString FlowTextV2;
-    FString FlowTextErrorV2;
-    if (!FN2CFlowBuilder_01::BuildFlowTextFromNodes_01(CollectedNodes, FlowTextV2, FlowTextErrorV2))
-    {
-        FN2CLogger::Get().LogError(FString::Printf(TEXT("Failed to build flow text v2: %s"), *FlowTextErrorV2));
-        return;
-    }
-
-    // v1 저장
-    const FString FlowTextPathV1 = FPaths::Combine(FlowDir, FString::Printf(TEXT("%s_flow_v1.txt"), *SafeGraphName));
-    if (!FFileHelper::SaveStringToFile(FlowTextV1, *FlowTextPathV1))
-    {
-        FN2CLogger::Get().LogError(FString::Printf(TEXT("Failed to save flow text v1: %s"), *FlowTextPathV1));
-        return;
-    }
-
-    // v2 저장
-    const FString FlowTextPathV2 = FPaths::Combine(FlowDir, FString::Printf(TEXT("%s_flow_v2.txt"), *SafeGraphName));
-    if (!FFileHelper::SaveStringToFile(FlowTextV2, *FlowTextPathV2))
-    {
-        FN2CLogger::Get().LogError(FString::Printf(TEXT("Failed to save flow text v2: %s"), *FlowTextPathV2));
-        return;
-    }
-
-    // 결과 비교 로그
-    const bool bMatch = (FlowTextV1 == FlowTextV2);
-    FN2CLogger::Get().Log(
-        FString::Printf(TEXT("Flow text v1 vs v2 match: %s"), bMatch ? TEXT("YES") : TEXT("NO")),
-        EN2CLogSeverity::Info
-    );
-
-    FNotificationInfo Info(FText::Format(
-        NSLOCTEXT("NodeToCode", "FlowTextSavedV1V2", "Flow text v1/v2 saved (match: {0})"),
-        bMatch ? FText::FromString(TEXT("YES")) : FText::FromString(TEXT("NO"))));
-    Info.bFireAndForget = true;
-    Info.FadeInDuration = 0.2f;
-    Info.FadeOutDuration = 0.5f;
-    Info.ExpireDuration = 2.0f;
-    FSlateNotificationManager::Get().AddNotification(Info);
-}
-
 void FN2CEditorIntegration::ExecuteCopyFlowText(TWeakPtr<FBlueprintEditor> InEditor)
 {
     // Flow 텍스트를 클립보드에 복사하는 툴바 액션
     TArray<UK2Node*> CollectedNodes;
+    UBlueprint* Blueprint = nullptr;
+    UEdGraph* FocusedGraph = nullptr;
     FString SafeGraphName;
     FString RootPath;
     FString FlowDir;
-    if (!PrepareSaveContext(InEditor, CollectedNodes, SafeGraphName, RootPath, FlowDir))
+    if (!PrepareSaveContext(InEditor, CollectedNodes, Blueprint, FocusedGraph, SafeGraphName, RootPath, FlowDir))
     {
         return;
     }
@@ -1127,10 +990,12 @@ void FN2CEditorIntegration::ExecuteCopyFlowJson(TWeakPtr<FBlueprintEditor> InEdi
 {
     // Flow JSON을 클립보드에 복사하는 툴바 액션
     TArray<UK2Node*> CollectedNodes;
+    UBlueprint* Blueprint = nullptr;
+    UEdGraph* FocusedGraph = nullptr;
     FString SafeGraphName;
     FString RootPath;
     FString FlowDir;
-    if (!PrepareSaveContext(InEditor, CollectedNodes, SafeGraphName, RootPath, FlowDir))
+    if (!PrepareSaveContext(InEditor, CollectedNodes, Blueprint, FocusedGraph, SafeGraphName, RootPath, FlowDir))
     {
         return;
     }
@@ -1166,10 +1031,12 @@ void FN2CEditorIntegration::ExecuteCopyParsedJson(TWeakPtr<FBlueprintEditor> InE
 {
     // Parsed JSON을 클립보드에 복사하는 툴바 액션
     TArray<UK2Node*> CollectedNodes;
+    UBlueprint* Blueprint = nullptr;
+    UEdGraph* FocusedGraph = nullptr;
     FString SafeGraphName;
     FString RootPath;
     FString FlowDir;
-    if (!PrepareSaveContext(InEditor, CollectedNodes, SafeGraphName, RootPath, FlowDir))
+    if (!PrepareSaveContext(InEditor, CollectedNodes, Blueprint, FocusedGraph, SafeGraphName, RootPath, FlowDir))
     {
         return;
     }
@@ -1662,71 +1529,7 @@ void FN2CEditorIntegration::RegisterToolbarForEditor(TSharedPtr<FBlueprintEditor
             return Editor->GetCurrentMode() == FBlueprintEditorApplicationModes::StandardBlueprintEditorMode;
         })
     );
-
-    // GUID :: Simple ID 알리아스가 생겨서 개별 파일로는 의미가 없어짐.
-    // CommandList->MapAction(
-    //     FN2CToolbarCommand::Get().SaveParsedJsonCommand,
-    //     FExecuteAction::CreateLambda([this, WeakEditor, BlueprintName]()
-    //     {
-    //         FN2CLogger::Get().Log(
-    //             FString::Printf(TEXT("Save Parsed Json triggered for Blueprint: %s"), *BlueprintName),
-    //             EN2CLogSeverity::Info
-    //         );
-    //         ExecuteSaveParsedJson(WeakEditor);
-    //     }),
-    //     FCanExecuteAction::CreateLambda([WeakEditor]()
-    //     {
-    //         TSharedPtr<FBlueprintEditor> Editor = WeakEditor.Pin();
-    //         if (!Editor.IsValid())
-    //         {
-    //             return false;
-    //         }
-    //         return Editor->GetCurrentMode() == FBlueprintEditorApplicationModes::StandardBlueprintEditorMode;
-    //     })
-    // );
-
-    // CommandList->MapAction(
-    //     FN2CToolbarCommand::Get().SaveFlowJsonCommand,
-    //     FExecuteAction::CreateLambda([this, WeakEditor, BlueprintName]()
-    //     {
-    //         FN2CLogger::Get().Log(
-    //             FString::Printf(TEXT("Save Flow Json triggered for Blueprint: %s"), *BlueprintName),
-    //             EN2CLogSeverity::Info
-    //         );
-    //         ExecuteSaveFlowJson(WeakEditor);
-    //     }),
-    //     FCanExecuteAction::CreateLambda([WeakEditor]()
-    //     {
-    //         TSharedPtr<FBlueprintEditor> Editor = WeakEditor.Pin();
-    //         if (!Editor.IsValid())
-    //         {
-    //             return false;
-    //         }
-    //         return Editor->GetCurrentMode() == FBlueprintEditorApplicationModes::StandardBlueprintEditorMode;
-    //     })
-    // );
-
-    // CommandList->MapAction(
-    //     FN2CToolbarCommand::Get().SaveFlowTextCommand,
-    //     FExecuteAction::CreateLambda([this, WeakEditor, BlueprintName]()
-    //     {
-    //         FN2CLogger::Get().Log(
-    //             FString::Printf(TEXT("Save Flow Text triggered for Blueprint: %s"), *BlueprintName),
-    //             EN2CLogSeverity::Info
-    //         );
-    //         ExecuteSaveFlowText(WeakEditor);
-    //     }),
-    //     FCanExecuteAction::CreateLambda([WeakEditor]()
-    //     {
-    //         TSharedPtr<FBlueprintEditor> Editor = WeakEditor.Pin();
-    //         if (!Editor.IsValid())
-    //         {
-    //             return false;
-    //         }
-    //         return Editor->GetCurrentMode() == FBlueprintEditorApplicationModes::StandardBlueprintEditorMode;
-    //     })
-    // );
-
+    
     CommandList->MapAction(
         FN2CToolbarCommand::Get().CopyFlowJsonCommand,
         FExecuteAction::CreateLambda([this, WeakEditor, BlueprintName]()

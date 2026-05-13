@@ -2,6 +2,55 @@
 
 #include "Utils/Processors/N2CEventProcessor.h"
 
+FString FN2CEventProcessor::GetNodeDesciption(const UEdGraphNode* Node)
+{
+    if (const UK2Node_Event* EventNode = Cast<UK2Node_Event>(Node))
+    {
+        const FString MemberName = GetCleanClassName(EventNode->EventReference.GetMemberName().ToString());
+        FString MemberParent;
+        if (UClass* EventClass = EventNode->EventReference.GetMemberParentClass())
+        {
+            MemberParent = GetCleanClassName(EventClass->GetPathName());
+        }
+        return FString::Printf(TEXT("Member: %s, Parent: %s"), *MemberName, *MemberParent);
+    }
+
+    if (const UK2Node_CustomEvent* CustomEventNode = Cast<UK2Node_CustomEvent>(Node))
+    {
+        const FString MemberName = CustomEventNode->CustomFunctionName.ToString();
+        FString MemberParent;
+        if (UBlueprint* BP = CustomEventNode->GetBlueprint())
+        {
+            MemberParent = GetCleanClassName(BP->GetName());
+        }
+        return FString::Printf(TEXT("FunctionName: %s, Parent: %s"), *MemberName, *MemberParent);
+    }
+
+    if (const UK2Node_ActorBoundEvent* ActorEventNode = Cast<UK2Node_ActorBoundEvent>(Node))
+    {
+        const FString MemberName = ActorEventNode->DelegatePropertyName.ToString();
+        FString MemberParent;
+        if (UClass* DelegateClass = ActorEventNode->DelegateOwnerClass)
+        {
+            MemberParent = GetCleanClassName(DelegateClass->GetName());
+        }
+        return FString::Printf(TEXT("DelegatePropertyName: %s, Parent: %s"), *MemberName, *MemberParent);
+    }
+
+    if (const UK2Node_ComponentBoundEvent* CompEventNode = Cast<UK2Node_ComponentBoundEvent>(Node))
+    {
+        const FString MemberName = CompEventNode->DelegatePropertyName.ToString();
+        FString MemberParent;
+        if (UClass* DelegateClass = CompEventNode->DelegateOwnerClass)
+        {
+            MemberParent = GetCleanClassName(DelegateClass->GetName());
+        }
+        return FString::Printf(TEXT("DelegatePropertyName: %s, Parent: %s"), *MemberName, *MemberParent);
+    }
+
+    return FString();
+}
+
 void FN2CEventProcessor::ExtractNodeProperties(UK2Node* Node, FN2CNodeDefinition& OutNodeDef)
 {
     // Handle standard event nodes

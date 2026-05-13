@@ -2,6 +2,57 @@
 
 #include "Utils/Processors/N2CVariableProcessor.h"
 
+FString FN2CVariableProcessor::GetNodeDesciption(const UEdGraphNode* Node)
+{
+    const UK2Node_Variable* VarNode = Cast<UK2Node_Variable>(Node);
+    if (!VarNode)
+    {
+        return FString();
+    }
+
+    FString MemberName;
+    const FMemberReference& VarRef = VarNode->VariableReference;
+    FName VariableMemberName = VarRef.GetMemberName();
+    if (!VariableMemberName.IsNone())
+    {
+        MemberName = GetCleanClassName(VariableMemberName.ToString());
+    }
+    else if (UEdGraph* Graph = Node->GetGraph())
+    {
+        MemberName = FString::Printf(TEXT("Var_%s_%d"), *Graph->GetName(), Node->GetUniqueID());
+    }
+    else
+    {
+        MemberName = TEXT("UnknownVariable");
+    }
+
+    FString MemberParent;
+    for (UEdGraphPin* Pin : VarNode->Pins)
+    {
+        if (Pin && Pin->Direction == EGPD_Output && Pin->PinType.PinCategory != FName("exec"))
+        {
+            TArray<FString> TypeParts;
+            TypeParts.Add(GetCleanClassName(Pin->PinType.PinCategory.ToString()));
+            if (!Pin->PinType.PinSubCategory.IsNone() && !Pin->PinType.PinSubCategory.ToString().IsEmpty())
+            {
+                TypeParts.Add(GetCleanClassName(Pin->PinType.PinSubCategory.ToString()));
+            }
+            if (Pin->PinType.PinSubCategoryObject.IsValid())
+            {
+                TypeParts.Add(GetCleanClassName(Pin->PinType.PinSubCategoryObject->GetName()));
+            }
+            if (!Pin->PinType.PinSubCategoryMemberReference.MemberName.IsNone())
+            {
+                TypeParts.Add(GetCleanClassName(Pin->PinType.PinSubCategoryMemberReference.MemberName.ToString()));
+            }
+            MemberParent = FString::Join(TypeParts, TEXT("/"));
+            break;
+        }
+    }
+
+    return FString::Printf(TEXT("Name: %s, Type: %s"), *MemberName, *MemberParent);
+}
+
 void FN2CVariableProcessor::ExtractNodeProperties(UK2Node* Node, FN2CNodeDefinition& OutNodeDef)
 {
     UK2Node_Variable* VarNode = Cast<UK2Node_Variable>(Node);

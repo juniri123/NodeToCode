@@ -46,4 +46,9 @@ protected:
      * @return The cleaned class name
      */
     FString GetCleanClassName(const FString& InName);
+    
+#pragma region ODS
+    virtual FString GetK2NodeTypeName(const UEdGraphNode* Node);
+    virtual FString GetNodeDesciption(const UEdGraphNode* Node) override;
+#pragma endregion
 };

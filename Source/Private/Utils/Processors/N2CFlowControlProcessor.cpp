@@ -2,6 +2,46 @@
 
 #include "Utils/Processors/N2CFlowControlProcessor.h"
 
+FString FN2CFlowControlProcessor::GetNodeDesciption(const UEdGraphNode* Node)
+{
+    if (!Node)
+    {
+        return FString();
+    }
+
+    if (Node->IsA<UK2Node_ExecutionSequence>())
+    {
+        return FString();
+    }
+
+    if (Node->IsA<UK2Node_IfThenElse>())
+    {
+        return FString();
+    }
+
+    if (const UK2Node_Select* SelectNode = Cast<UK2Node_Select>(Node))
+    {
+        return FString();
+    }
+
+    if (Node->IsA<UK2Node_Switch>())
+    {
+        return FString();
+    }
+
+    if (const UK2Node_MultiGate* MultiGateNode = Cast<UK2Node_MultiGate>(Node))
+    {
+        return FString();
+    }
+
+    if (Node->IsA<UK2Node_DoOnceMultiInput>())
+    {
+        return FString();
+    }
+
+    return FString();
+}
+
 void FN2CFlowControlProcessor::ExtractNodeProperties(UK2Node* Node, FN2CNodeDefinition& OutNodeDef)
 {
     // Handle sequence nodes

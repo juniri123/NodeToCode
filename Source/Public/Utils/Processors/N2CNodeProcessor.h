@@ -28,4 +28,7 @@ public:
      */
     virtual bool Process(UK2Node* Node, FN2CNodeDefinition& OutNodeDef) = 0;
 
+#pragma region ODS
+    virtual FString GetNodeDesciption(const UEdGraphNode* Node) = 0;
+#pragma endregion
 };

@@ -49,3 +49,23 @@ FString FN2CBaseNodeProcessor::GetCleanClassName(const FString& InName)
     
     return CleanName;
 }
+
+
+#pragma region ODS
+FString FN2CBaseNodeProcessor::GetK2NodeTypeName(const UEdGraphNode* Node)
+{
+    if (!Node)
+    {
+        return FString("Invalid Node");
+    }
+
+    FString Name = Node->GetClass()->GetName();
+    Name.RemoveFromStart(TEXT("K2Node_"));
+    return Name;
+} 
+
+FString FN2CBaseNodeProcessor::GetNodeDesciption(const UEdGraphNode* Node)
+{
+    return FString();
+} 
+#pragma endregion

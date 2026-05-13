@@ -2,6 +2,36 @@
 
 #include "Utils/Processors/N2CFunctionEntryProcessor.h"
 
+FString FN2CFunctionEntryProcessor::GetNodeDesciption(const UEdGraphNode* Node)
+{
+    if (const UK2Node_FunctionEntry* FuncEntryNode = Cast<UK2Node_FunctionEntry>(Node))
+    {
+        return FString();
+    }
+
+    if (const UK2Node_FunctionResult* FuncResultNode = Cast<UK2Node_FunctionResult>(Node))
+    {
+        return FString();
+    }
+
+    if (const UK2Node_MacroInstance* MacroNode = Cast<UK2Node_MacroInstance>(Node))
+    {
+        FString MemberName;
+        FString MemberParent;
+        if (UEdGraph* MacroGraph = MacroNode->GetMacroGraph())
+        {
+            MemberName = GetCleanClassName(MacroGraph->GetName());
+            if (UBlueprint* BP = Cast<UBlueprint>(MacroGraph->GetOuter()))
+            {
+                MemberParent = GetCleanClassName(BP->GetName());
+            }
+        }
+        return FString::Printf(TEXT("Macro: %s, Blueprint: %s"), *MemberName, *MemberParent);
+    }
+
+    return FString();
+}
+
 void FN2CFunctionEntryProcessor::ExtractNodeProperties(UK2Node* Node, FN2CNodeDefinition& OutNodeDef)
 {
     // Handle function entry nodes

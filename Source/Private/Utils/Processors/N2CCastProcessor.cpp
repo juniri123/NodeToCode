@@ -2,6 +2,38 @@
 
 #include "Utils/Processors/N2CCastProcessor.h"
 
+FString FN2CCastProcessor::GetNodeDesciption(const UEdGraphNode* Node)
+{
+    if (const UK2Node_DynamicCast* CastNode = Cast<UK2Node_DynamicCast>(Node))
+    {
+        if (UClass* TargetType = CastNode->TargetType)
+        {
+            const FString MemberName = GetCleanClassName(TargetType->GetName());
+            return FString::Printf(TEXT("Target Type: %s"), *MemberName);
+        }
+    }
+
+    if (const UK2Node_ClassDynamicCast* ClassCastNode = Cast<UK2Node_ClassDynamicCast>(Node))
+    {
+        if (UClass* TargetType = ClassCastNode->TargetType)
+        {
+            const FString MemberName = GetCleanClassName(TargetType->GetName());
+            return FString::Printf(TEXT("Target Type: %s"), *MemberName);
+        }
+    }
+
+    if (const UK2Node_CastByteToEnum* ByteToEnumNode = Cast<UK2Node_CastByteToEnum>(Node))
+    {
+        if (UEnum* Enum = ByteToEnumNode->Enum)
+        {
+            const FString MemberName = GetCleanClassName(Enum->GetName());
+            return FString::Printf(TEXT("Enum Type: %s"), *MemberName);
+        }
+    }
+
+    return FString();
+}
+
 void FN2CCastProcessor::ExtractNodeProperties(UK2Node* Node, FN2CNodeDefinition& OutNodeDef)
 {
     // Handle dynamic cast nodes

@@ -687,6 +687,12 @@ public:
                ToolTip = "Choose whether the LLM receives the C++-generated graph/struct files or the MCP server inspect response files"))
     EN2CMcpInspectPayloadSource McpInspectPayloadSource = EN2CMcpInspectPayloadSource::CppGenerated;
 
+    /** Use compact alias notation in graph.txt output */
+    UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Node to Code | BP2CPP (MCP)",
+        meta = (DisplayName = "Add Compact Graph Alias Notation",
+               ToolTip = "When enabled, graph.txt adds compact alias notation such as N1 and P1@N1 to the output"))
+    bool bAddCompactAliasNotation = false;
+
     /** Include flow.json */
     UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Node to Code | BP2CPP (MCP)",
         meta = (DisplayName = "Include Flow JSON"))

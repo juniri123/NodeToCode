@@ -2,6 +2,55 @@
 
 #include "Utils/Processors/N2CDelegateProcessor.h"
 
+FString FN2CDelegateProcessor::GetNodeDesciption(const UEdGraphNode* Node)
+{
+    if (const UK2Node_BaseMCDelegate* DelegateNode = Cast<UK2Node_BaseMCDelegate>(Node))
+    {
+        const FString MemberName = DelegateNode->DelegateReference.GetMemberName().ToString();
+        FString MemberParent;
+        if (UClass* DelegateClass = DelegateNode->DelegateReference.GetMemberParentClass())
+        {
+            MemberParent = GetCleanClassName(DelegateClass->GetName());
+        }
+        return FString::Printf(TEXT("Member: %s, Parent: %s"), *MemberName, *MemberParent);
+    }
+
+    if (const UK2Node_CreateDelegate* CreateDelegateNode = Cast<UK2Node_CreateDelegate>(Node))
+    {
+        const FString MemberName = GetCleanClassName(CreateDelegateNode->GetFunctionName().ToString());
+        FString MemberParent;
+        if (UClass* ScopeClass = CreateDelegateNode->GetScopeClass())
+        {
+            MemberParent = GetCleanClassName(ScopeClass->GetName());
+        }
+        else if (UFunction* DelegateSignature = CreateDelegateNode->GetDelegateSignature())
+        {
+            if (UClass* OwnerClass = DelegateSignature->GetOwnerClass())
+            {
+                MemberParent = GetCleanClassName(OwnerClass->GetName());
+            }
+        }
+        return FString::Printf(TEXT("Function: %s, Class: %s"), *MemberName, *MemberParent);
+    }
+
+    if (const UK2Node_CallDelegate* CallDelegateNode = Cast<UK2Node_CallDelegate>(Node))
+    {
+        FString MemberName;
+        FString MemberParent;
+        if (UFunction* Function = CallDelegateNode->GetDelegateSignature())
+        {
+            MemberName = GetCleanClassName(Function->GetName());
+            if (UClass* OwnerClass = Function->GetOwnerClass())
+            {
+                MemberParent = GetCleanClassName(OwnerClass->GetName());
+            }
+        }
+        return FString::Printf(TEXT("Signature: %s, Class: %s"), *MemberName, *MemberParent);
+    }
+
+    return FString();
+}
+
 void FN2CDelegateProcessor::ExtractNodeProperties(UK2Node* Node, FN2CNodeDefinition& OutNodeDef)
 {
     // Handle base multicast delegate nodes

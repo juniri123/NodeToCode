@@ -2,6 +2,28 @@
 
 #include "Utils/Processors/N2CFunctionCallProcessor.h"
 
+FString FN2CFunctionCallProcessor::GetNodeDesciption(const UEdGraphNode* Node)
+{
+    const UK2Node_CallFunction* FuncNode = Cast<UK2Node_CallFunction>(Node);
+    if (!FuncNode)
+    {
+        return FString();
+    }
+
+    if (UFunction* Function = FuncNode->GetTargetFunction())
+    {
+        const FString MemberParent = GetCleanClassName(Function->GetOwnerClass()->GetName());
+        const FString MemberName = GetCleanClassName(Function->GetName());
+        const bool bLatent = FuncNode->IsLatentFunction();
+        return FString::Printf(TEXT("%s::%s, Latent: %s"),
+            *MemberParent,
+            *MemberName,
+            bLatent ? TEXT("true") : TEXT("false"));
+    }
+
+    return FString();
+}
+
 void FN2CFunctionCallProcessor::ExtractNodeProperties(UK2Node* Node, FN2CNodeDefinition& OutNodeDef)
 {
     UK2Node_CallFunction* FuncNode = Cast<UK2Node_CallFunction>(Node);

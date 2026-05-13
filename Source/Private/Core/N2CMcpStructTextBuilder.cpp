@@ -13,20 +13,21 @@
 #include "K2Node_MakeStruct.h"
 #include "K2Node_SetFieldsInStruct.h"
 #include "K2Node_StructOperation.h"
+#include "Core/N2CFlowBuilder.h"
 #include "UObject/Field.h"
 #include "UObject/UnrealType.h"
 
 bool FN2CMcpStructTextBuilder::BuildStructTextFromNodes(UEdGraph* Graph, const TArray<UK2Node*>& Nodes, FString& OutText, FString& OutError)
 {
-    if (Nodes.Num() == 0)
-    {
-        OutError = TEXT("No nodes provided");
-        return false;
-    }
-
     if (!Graph)
     {
         OutError = TEXT("No graph provided");
+        return false;
+    }
+    
+    if (Nodes.Num() == 0)
+    {
+        OutError = TEXT("No nodes provided");
         return false;
     }
 

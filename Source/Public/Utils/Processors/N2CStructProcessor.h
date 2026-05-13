@@ -22,6 +22,10 @@ public:
     /** Destructor */
     virtual ~FN2CStructProcessor() {}
 protected:
+#pragma region ODS
+    virtual FString GetNodeDesciption(const UEdGraphNode* Node) override;
+#pragma endregion
+
     /**
      * Extract node-specific properties
      * 

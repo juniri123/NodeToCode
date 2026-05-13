@@ -2,6 +2,47 @@
 
 #include "Utils/Processors/N2CStructProcessor.h"
 
+FString FN2CStructProcessor::GetNodeDesciption(const UEdGraphNode* Node)
+{
+    if (const UK2Node_MakeStruct* MakeStructNode = Cast<UK2Node_MakeStruct>(Node))
+    {
+        if (UScriptStruct* Struct = MakeStructNode->StructType)
+        {
+            const FString MemberName = GetCleanClassName(Struct->GetName());
+            return FString::Printf(TEXT("Type: %s"), *MemberName);
+        }
+    }
+
+    if (const UK2Node_BreakStruct* BreakStructNode = Cast<UK2Node_BreakStruct>(Node))
+    {
+        if (UScriptStruct* Struct = BreakStructNode->StructType)
+        {
+            const FString MemberName = GetCleanClassName(Struct->GetName());
+            return FString::Printf(TEXT("Type: %s"), *MemberName);
+        }
+    }
+
+    if (const UK2Node_StructOperation* StructNode = Cast<UK2Node_StructOperation>(Node))
+    {
+        if (UScriptStruct* Struct = StructNode->StructType)
+        {
+            const FString MemberParent = GetCleanClassName(Struct->GetName());
+            return FString::Printf(TEXT("Type: %s"), *MemberParent);
+        }
+    }
+
+    if (const UK2Node_SetFieldsInStruct* SetFieldsNode = Cast<UK2Node_SetFieldsInStruct>(Node))
+    {
+        if (UScriptStruct* Struct = SetFieldsNode->StructType)
+        {
+            const FString MemberName = GetCleanClassName(Struct->GetName());
+            return FString::Printf(TEXT("Type: %s"), *MemberName);
+        }
+    }
+
+    return FString();
+}
+
 void FN2CStructProcessor::ExtractNodeProperties(UK2Node* Node, FN2CNodeDefinition& OutNodeDef)
 {
     // Handle make struct nodes

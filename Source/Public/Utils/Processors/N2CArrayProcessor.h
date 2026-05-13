@@ -24,6 +24,10 @@ public:
     virtual ~FN2CArrayProcessor() {}
     
 protected:
+#pragma region ODS
+    virtual FString GetNodeDesciption(const UEdGraphNode* Node) override;
+#pragma endregion
+
     /**
      * Extract node-specific properties
      * 

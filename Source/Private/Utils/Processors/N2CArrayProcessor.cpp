@@ -2,6 +2,136 @@
 
 #include "Utils/Processors/N2CArrayProcessor.h"
 
+FString FN2CArrayProcessor::GetNodeDesciption(const UEdGraphNode* Node)
+{
+    if (const UK2Node_MakeArray* MakeArrayNode = Cast<UK2Node_MakeArray>(Node))
+    {
+        FString MemberName;
+        for (UEdGraphPin* Pin : MakeArrayNode->Pins)
+        {
+            if (Pin && Pin->Direction == EGPD_Output)
+            {
+                if (Pin->PinType.PinSubCategory != NAME_None)
+                {
+                    MemberName = GetCleanClassName(Pin->PinType.PinSubCategory.ToString());
+                }
+                else if (Pin->PinType.PinSubCategoryObject.IsValid())
+                {
+                    MemberName = GetCleanClassName(Pin->PinType.PinSubCategoryObject->GetName());
+                }
+                break;
+            }
+        }
+        return FString::Printf(TEXT("Element Type: %s"), *MemberName);
+    }
+
+    if (const UK2Node_MakeMap* MakeMapNode = Cast<UK2Node_MakeMap>(Node))
+    {
+        FString KeyType;
+        FString ValueType;
+        for (UEdGraphPin* Pin : MakeMapNode->Pins)
+        {
+            if (Pin && Pin->Direction == EGPD_Output)
+            {
+                if (Pin->PinType.PinValueType.TerminalCategory != NAME_None)
+                {
+                    KeyType = GetCleanClassName(Pin->PinType.PinValueType.TerminalCategory.ToString());
+                }
+                if (Pin->PinType.PinSubCategory != NAME_None)
+                {
+                    ValueType = GetCleanClassName(Pin->PinType.PinSubCategory.ToString());
+                }
+                else if (Pin->PinType.PinSubCategoryObject.IsValid())
+                {
+                    ValueType = GetCleanClassName(Pin->PinType.PinSubCategoryObject->GetName());
+                }
+                break;
+            }
+        }
+        return FString::Printf(TEXT("Key Type: %s, Value Type: %s"), *KeyType, *ValueType);
+    }
+
+    if (const UK2Node_MakeSet* MakeSetNode = Cast<UK2Node_MakeSet>(Node))
+    {
+        FString MemberName;
+        for (UEdGraphPin* Pin : MakeSetNode->Pins)
+        {
+            if (Pin && Pin->Direction == EGPD_Output)
+            {
+                if (Pin->PinType.PinSubCategory != NAME_None)
+                {
+                    MemberName = GetCleanClassName(Pin->PinType.PinSubCategory.ToString());
+                }
+                else if (Pin->PinType.PinSubCategoryObject.IsValid())
+                {
+                    MemberName = GetCleanClassName(Pin->PinType.PinSubCategoryObject->GetName());
+                }
+                break;
+            }
+        }
+        return FString::Printf(TEXT("Element Type: %s"), *MemberName);
+    }
+
+    if (const UK2Node_GetArrayItem* GetArrayItemNode = Cast<UK2Node_GetArrayItem>(Node))
+    {
+        FString MemberName;
+        for (UEdGraphPin* Pin : GetArrayItemNode->Pins)
+        {
+            if (Pin && Pin->Direction == EGPD_Input && Pin->PinName == TEXT("TargetArray"))
+            {
+                if (Pin->PinType.PinSubCategory != NAME_None)
+                {
+                    MemberName = GetCleanClassName(Pin->PinType.PinSubCategory.ToString());
+                }
+                else if (Pin->PinType.PinSubCategoryObject.IsValid())
+                {
+                    MemberName = GetCleanClassName(Pin->PinType.PinSubCategoryObject->GetName());
+                }
+                break;
+            }
+        }
+        return FString::Printf(TEXT("Element Type: %s"), *MemberName);
+    }
+
+    if (const UK2Node_MakeContainer* MakeContainerNode = Cast<UK2Node_MakeContainer>(Node))
+    {
+        FString ContainerType = TEXT("Unknown");
+        if (MakeContainerNode->IsA<UK2Node_MakeArray>())
+        {
+            ContainerType = TEXT("Array");
+        }
+        else if (MakeContainerNode->IsA<UK2Node_MakeMap>())
+        {
+            ContainerType = TEXT("Map");
+        }
+        else if (MakeContainerNode->IsA<UK2Node_MakeSet>())
+        {
+            ContainerType = TEXT("Set");
+        }
+
+        FString MemberName;
+        for (UEdGraphPin* Pin : MakeContainerNode->Pins)
+        {
+            if (Pin && Pin->Direction == EGPD_Output)
+            {
+                if (Pin->PinType.PinSubCategory != NAME_None)
+                {
+                    MemberName = GetCleanClassName(Pin->PinType.PinSubCategory.ToString());
+                }
+                else if (Pin->PinType.PinSubCategoryObject.IsValid())
+                {
+                    MemberName = GetCleanClassName(Pin->PinType.PinSubCategoryObject->GetName());
+                }
+                break;
+            }
+        }
+
+        return FString::Printf(TEXT("Type: %s, Element Type: %s"), *ContainerType, *MemberName);
+    }
+
+    return FString();
+}
+
 void FN2CArrayProcessor::ExtractNodeProperties(UK2Node* Node, FN2CNodeDefinition& OutNodeDef)
 {
     // Handle make array nodes
