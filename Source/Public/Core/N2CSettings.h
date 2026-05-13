@@ -380,7 +380,7 @@ enum class EN2CMcpInspectPayloadSource : uint8
 };
 #pragma endregion
 
-UCLASS(Config = NodeToCode, DefaultConfig, meta = (Category = "Node to Code", DisplayName = "Node to Code"))
+UCLASS(Config = EditorPerProjectUserSettings, meta = (Category = "Node to Code", DisplayName = "Node to Code"))
 class NODETOCODE_API UN2CSettings : public UDeveloperSettings
 {
     GENERATED_BODY()
@@ -412,7 +412,7 @@ public:
 
     /** OpenAI Model Selection - o3-mini recommended for impressive results for a great price, o1 recommended for most thorough results (but quite expensive) */
     UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Node to Code | LLM Services | OpenAI")
-    EN2COpenAIModel OpenAI_Model = EN2COpenAIModel::GPT_o4_mini;
+    EN2COpenAIModel OpenAI_Model = EN2COpenAIModel::GPT_5_5;
 
     /** OpenAI API Key - Stored separately in user secrets */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Node to Code | LLM Services | OpenAI",
