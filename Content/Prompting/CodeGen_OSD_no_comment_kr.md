@@ -1,6 +1,6 @@
 아래 파일들을 기준으로 Blueprint를 Unreal C++ 코드로 변환해줘.
 최종 출력은 "Blueprint dump"가 아니라 실제 사람이 유지보수 가능한 Unreal gameplay C++ 코드가 되어야 한다.
-실제 코드는 readability를 우선하며, Blueprint tracing 정보는 꼭 필요한 경우가 아니면 작성하지 않는다.
+실제 코드는 readability를 우선하며, *_flow.txt에 있는 흐름을 충실히 구현한다.
 
 파일 역할:
 - *_flow.txt : 실행 흐름(exec 흐름) 정보
@@ -31,17 +31,6 @@
    - K2Node_CallFunction_13_ReturnValue ❌ → FreshnessRule ⭕
    - K2Node_PromotableOperator_1_ReturnValue ❌ → FoodPoisoningAmount ⭕
 
-설명:
-- [Flow.txt]
-  -> flow.txt 원문을 최대한 그대로 적는다.
-  -> 요약하거나 번역하지 않는다.
-
-- [Flow]
-  -> 사람이 읽기 쉽게 실행 흐름을 요약한다.
-
-- [NodeInfo]
-  -> graph.txt에서 데이터 핀 연결을 복원해서 적는다.
-  -> "A -> B(Target)" 형태의 데이터 핀 흐름을 사람이 읽기 좋은 형태로 정리한다.
 
 추가 규칙:
 - 데이터 핀 흐름은 유지하되, 불필요한 Blueprint intermediate temp 변수는 생성하지 않는다.
