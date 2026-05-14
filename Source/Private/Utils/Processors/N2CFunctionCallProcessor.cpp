@@ -15,9 +15,9 @@ FString FN2CFunctionCallProcessor::GetNodeDesciption(const UEdGraphNode* Node)
         const FString MemberParent = GetCleanClassName(Function->GetOwnerClass()->GetName());
         const FString MemberName = GetCleanClassName(Function->GetName());
         const bool bLatent = FuncNode->IsLatentFunction();
-        return FString::Printf(TEXT("%s::%s, Latent: %s"),
-            *MemberParent,
+        return FString::Printf(TEXT("%s, Class: %s, Latent: %s"),
             *MemberName,
+            *MemberParent,
             bLatent ? TEXT("true") : TEXT("false"));
     }
 
