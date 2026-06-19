@@ -13,6 +13,43 @@
 #pragma region ODS
 namespace
 {
+    // placeholder 그룹 1개를 표현하는 데이터 구조
+    // merge point 생성에 필요한 모든 정보 포함
+    struct FMergingGroup
+    {
+        SharedStepPtr CommonStep;
+        SharedStepPtr MergingPointStep;
+        StepArray Placeholders;
+        bool bIsFallthrough = false;
+    };
+
+    // 같은 callstack을 가진 step들을 하나의 그룹으로 묶는다.
+    struct FLeaderCallstackGroup
+    {
+        FString Callstack;
+        SharedStepPtr Leader;
+        StepArray Steps;
+    };
+
+    // 같은 callstack을 가진 step들을 하나의 그룹으로 묶는다.
+    struct FCallstackGroup
+    {
+        FString Callstack;
+        StepArray Steps;
+
+        SharedStepPtr GetFirstStep() const
+        {
+            return Steps.Num() > 0 ? Steps[0] : nullptr;
+        }
+    };
+
+    // Step과 그 Step의 callstack 문자열
+    struct FStepCallstack
+    {
+        SharedStepPtr Step;
+        FString Callstack;
+    };
+
     // 로직 depth만큼 indent prefix 생성
     static FString MakeIndentPrefix(int32 Depth)
     {
@@ -59,14 +96,14 @@ namespace
     }
 
     // Step 키로 찾기
-    TSharedPtr<N2CFlow::Step> FindStepByKey(const TMap<FString, TSharedPtr<N2CFlow::Step>>& StepsByKey, const FString& Key)
+    SharedStepPtr FindStepByKey(const StepMap& StepsByKey, const FString& Key)
     {
-        const TSharedPtr<N2CFlow::Step>* Found = StepsByKey.Find(Key);
+        const SharedStepPtr* Found = StepsByKey.Find(Key);
         return Found ? *Found : nullptr;
     }
 
     // 단일 Step을 텍스트 라인으로 변환
-    TArray<FString> PrintSingleStep(const TSharedPtr<N2CFlow::Step>& Step, bool bWithIndent, const N2CFlow::FGUIDAlias& GuidAlias)
+    TArray<FString> PrintSingleStep(const SharedStepPtr& Step, bool bWithIndent, const N2CFlow::FGUIDAlias& GuidAlias)
     {
         TArray<FString> Lines;
         if (!Step.IsValid() || !Step->Node.IsValid())
@@ -143,7 +180,7 @@ namespace
                                         *NodeGuid));
             }
             Lines.Add(IndentPrefix + TEXT("----- Placeholders -----"));
-            for (const TSharedPtr<N2CFlow::Step>& Placeholder : Step->CommonPlaceholders)
+            for (const SharedStepPtr& Placeholder : Step->CommonPlaceholders)
             {
                 if (Placeholder.IsValid())
                 {
@@ -160,7 +197,7 @@ namespace
         {
             Lines.Add(IndentPrefix + TEXT("Merging Point ") + Step->Key);
             Lines.Add(IndentPrefix + TEXT("----- Merged Placeholders -----"));
-            for (const TSharedPtr<N2CFlow::Step>& Placeholder : Step->CommonPlaceholders)
+            for (const SharedStepPtr& Placeholder : Step->CommonPlaceholders)
             {
                 if (Placeholder.IsValid() && Placeholder->Node.IsValid())
                 {
@@ -200,7 +237,7 @@ namespace
     }
 
     // 실행 흐름을 문자열 리스트로 출력
-    TArray<FString> PrintSteps(const TSharedPtr<N2CFlow::Step>& Step, const N2CFlow::FGUIDAlias& GuidAlias)
+    TArray<FString> PrintSteps(const SharedStepPtr& Step, const N2CFlow::FGUIDAlias& GuidAlias)
     {
         TArray<FString> Lines;
         if (!Step.IsValid())
@@ -209,7 +246,7 @@ namespace
         }
 
         Lines.Append(PrintSingleStep(Step, true, GuidAlias));
-        for (const TSharedPtr<N2CFlow::Step>& Child : Step->Branches)
+        for (const SharedStepPtr& Child : Step->Branches)
         {
             Lines.Append(PrintSteps(Child, GuidAlias));
         }
@@ -218,7 +255,7 @@ namespace
     }
     
     // common_steps에 저장된 모든 step을 순회하며 출력
-    TArray<FString> PrintCommonSteps(const TMap<FString, TSharedPtr<N2CFlow::Step>>& CommonSteps, const N2CFlow::FGUIDAlias& GuidAlias)
+    TArray<FString> PrintCommonSteps(const StepMap& CommonSteps, const N2CFlow::FGUIDAlias& GuidAlias)
     {
         TArray<FString> Lines;
         if (CommonSteps.Num() == 0)
@@ -228,7 +265,7 @@ namespace
         }
 
         int32 Num = 0;
-        for (const TPair<FString, TSharedPtr<N2CFlow::Step>>& Pair : CommonSteps)
+        for (const TPair<FString, SharedStepPtr>& Pair : CommonSteps)
         {
             Lines.Add(FString::Printf(TEXT("[#%d]"), Num));
             Lines.Append(PrintSteps(Pair.Value, GuidAlias));
@@ -238,32 +275,51 @@ namespace
         return Lines;
     }
 
-    // 부모 체인 수집 (child -> root)
-    // from 핀이 여러 개인 경우 common step으로 flatten 되었으므로 부모 1개 보장
-    TArray<TSharedPtr<N2CFlow::Step>> GetParentChain(const TSharedPtr<N2CFlow::Step>& Step,
-                                                    const TMap<FString, TSharedPtr<N2CFlow::Step>>& StepsByKey)
+    // 주어진 Step에서 root 까지 가는 체인을 수집
+    // 실행 입력 핀이 여러 개인 경우(분기된 경우)에는 첫 번째 from 핀만 따라간다.
+    // Common Step의 경우에 placeholder를 만들어 연결하였기 때문에, Common Step이 이 함수로 들어오지 않는다는 가정이다.
+    // 따라서 여기에 들어오는 Step은 일반 Step이고 연결된 from 핀이 하나만 있다고 가정한다.
+    StepArray GetPrimaryExecChain(const SharedStepPtr& Step, const StepMap& StepsByKey, bool bIncludeSelf)
     {
-        TArray<TSharedPtr<N2CFlow::Step>> Chain;
-        TSharedPtr<N2CFlow::Step> Cur = Step;
+        StepArray Chain;
+
+        SharedStepPtr Cur = Step;
         while (Cur.IsValid())
         {
-            Chain.Add(Cur);
-            if (Cur->FromPins.Num() > 0)
+            if (bIncludeSelf || Cur != Step)
             {
-                const N2CFlow::Pin& FromPin = Cur->FromPins[0];
-                Cur = FindStepByKey(StepsByKey, FromPin.NodeName);
+                Chain.Add(Cur);
             }
-            else
+
+            if (Cur->FromPins.Num() == 0)
             {
-                Cur.Reset();
+                break;
             }
+
+            const N2CFlow::Pin& ExecFromPin = Cur->FromPins[0];
+            Cur = FindStepByKey(StepsByKey, ExecFromPin.NodeName);
         }
+
         return Chain;
     }
 
+    // Step->Node->Name들을 /로 연결한 문자열 생성 (callstack 표현)
+    FString BuildCallstackString(const StepArray& Chain)
+    {
+        TArray<FString> Names;
+        for (const SharedStepPtr& Step : Chain)
+        {
+            if (Step.IsValid() && Step->Node.IsValid())
+            {
+                Names.Add(Step->Node->Name);
+            }
+        }
+
+        return FString::Join(Names, TEXT("/"));
+    }
+
     // placeholder들의 LCA(최저 공통 조상) 찾기
-    TSharedPtr<N2CFlow::Step> FindLCA(const TArray<TSharedPtr<N2CFlow::Step>>& Placeholders,
-                                    const TMap<FString, TSharedPtr<N2CFlow::Step>>& StepsByKey)
+    SharedStepPtr FindLCA(const StepArray& Placeholders, const StepMap& StepsByKey)
     {
         // 각 placeholder의 parent chain 가져오기 (child -> root)
         if (Placeholders.Num() == 0)
@@ -272,26 +328,26 @@ namespace
         }
 
         // 각 체인을 root -> child 로 뒤집기
-        TArray<TArray<TSharedPtr<N2CFlow::Step>>> Chains;
+        TArray<StepArray> Chains;
         Chains.Reserve(Placeholders.Num());
-        for (const TSharedPtr<N2CFlow::Step>& Placeholder : Placeholders)
+        for (const SharedStepPtr& Placeholder : Placeholders)
         {
-            TArray<TSharedPtr<N2CFlow::Step>> Chain = GetParentChain(Placeholder, StepsByKey);
+            StepArray Chain =  GetPrimaryExecChain(Placeholder, StepsByKey, true);
             Algo::Reverse(Chain);
             Chains.Add(MoveTemp(Chain));
         }
 
         // 가장 짧은 체인 길이
         int32 MinLen = MAX_int32;
-        for (const TArray<TSharedPtr<N2CFlow::Step>>& Chain : Chains)
+        for (const StepArray& Chain : Chains)
         {
             MinLen = FMath::Min(MinLen, Chain.Num());
         }
 
-        TSharedPtr<N2CFlow::Step> Lca;
+        SharedStepPtr Lca;
         for (int32 i = 0; i < MinLen; ++i)
         {
-            const TSharedPtr<N2CFlow::Step>& Candidate = Chains[0][i];
+            const SharedStepPtr& Candidate = Chains[0][i];
             bool bAllMatch = true;
             for (int32 j = 1; j < Chains.Num(); ++j)
             {
@@ -316,9 +372,9 @@ namespace
 
     // 모든 switch에 적용되는 일반 규칙이 아니라,
     // 여러 case placeholder가 같은 callstack을 공유하는 특정 fallthrough-like 패턴만 잡는 예외 처리.
-    bool IsSwitchFallthroughCase(const TSharedPtr<N2CFlow::Step>& Lca,
-                                const TArray<TSharedPtr<N2CFlow::Step>>& Placeholders,
-                                const TMap<FString, TSharedPtr<N2CFlow::Step>>& StepsByKey)
+    bool IsSwitchFallthroughCase(const SharedStepPtr& Lca,
+                                const StepArray& Placeholders,
+                                const StepMap& StepsByKey)
     {
         // 좁게 잡는 조건:
         // 1) LCA 노드 이름에 switch 포함
@@ -337,22 +393,10 @@ namespace
 
         // --- 조건 2) placeholder들의 callstackline 이 동일한지 확인 ---
         TSet<FString> Callstacks;
-        for (const TSharedPtr<N2CFlow::Step>& Placeholder : Placeholders)
+        for (const SharedStepPtr& Placeholder : Placeholders)
         {
-            TArray<TSharedPtr<N2CFlow::Step>> Chain = GetParentChain(Placeholder, StepsByKey);
-            if (Chain.Num() > 0)
-            {
-                Chain.RemoveAt(0);
-            }
-            TArray<FString> Names;
-            for (const TSharedPtr<N2CFlow::Step>& Step : Chain)
-            {
-                if (Step.IsValid() && Step->Node.IsValid())
-                {
-                    Names.Add(Step->Node->Name);
-                }
-            }
-            Callstacks.Add(FString::Join(Names, TEXT("/")));
+            StepArray Chain =  GetPrimaryExecChain(Placeholder, StepsByKey, false);
+            Callstacks.Add(BuildCallstackString(Chain));
         }
 
         // 모두 동일한지 확인
@@ -362,7 +406,7 @@ namespace
         }
 
         // --- 조건 3) default branch placeholder 배제 ---
-        for (const TSharedPtr<N2CFlow::Step>& Placeholder : Placeholders)
+        for (const SharedStepPtr& Placeholder : Placeholders)
         {
             for (const N2CFlow::Pin& Pin : Placeholder->FromPins)
             {
@@ -377,73 +421,207 @@ namespace
         return true;
     }
 
-    // placeholder 그룹 1개를 표현하는 데이터 구조
-    // merge point 생성에 필요한 모든 정보 포함
-    struct FMergingGroup
+    TArray<FStepCallstack> BuildCallstacksPerPlaceholder(
+        const StepArray& AllPlaceholders,
+        const StepMap& StepsByKey)
     {
-        TSharedPtr<N2CFlow::Step> CommonStep;
-        TSharedPtr<N2CFlow::Step> MergingPointStep;
-        TArray<TSharedPtr<N2CFlow::Step>> Placeholders;
-        bool bIsFallthrough = false;
-    };
-        
-    // placeholder들을 callstack 기준으로 그루핑 (Python build_placeholder_groups)
-    TArray<FMergingGroup> BuildPlaceholderGroups(const TArray<TSharedPtr<N2CFlow::Step>>& AllPlaceholders,
-                                                const TMap<FString, TSharedPtr<N2CFlow::Step>>& StepsByKey)
-    {
-        // parent-chain 수집: CallstackByKey = {step_key0: "A/B/C/...", step_key1: "A/B/D/..."}
-        TMap<FString, FString> CallstackByKey;
-        for (const TSharedPtr<N2CFlow::Step>& Placeholder : AllPlaceholders)
+        TArray<FStepCallstack> StepCallstacks;
+        StepCallstacks.Reserve(AllPlaceholders.Num());
+
+        for (const SharedStepPtr& OneStep : AllPlaceholders)
         {
-            TArray<TSharedPtr<N2CFlow::Step>> Chain = GetParentChain(Placeholder, StepsByKey);
-            if (Chain.Num() > 0)
-            {
-                Chain.RemoveAt(0); // 자기 자신은 제외
-            }
-            TArray<FString> Names;
-            for (const TSharedPtr<N2CFlow::Step>& Step : Chain)
-            {
-                if (Step.IsValid() && Step->Node.IsValid())
-                {
-                    Names.Add(Step->Node->Name);
-                }
-            }
-            CallstackByKey.Add(Placeholder->Key, FString::Join(Names, TEXT("/")));
+            StepArray Chain = GetPrimaryExecChain(OneStep, StepsByKey, false);
+            StepCallstacks.Emplace(OneStep, BuildCallstackString(Chain));
         }
 
-        // 대표 placeholder(leader) 선택
+        return StepCallstacks;
+    }
+
+    TArray<FCallstackGroup> BuildCallstackGroups(
+        const TArray<FStepCallstack>& StepCallstacks
+    )
+    {
+        // callstack 기준으로 그룹핑
+        TMap<FString, StepArray> CallstackGroup;
+        for (const FStepCallstack& OneStack : StepCallstacks)
+        {
+            CallstackGroup.FindOrAdd(OneStack.Callstack).Add(OneStack.Step);
+        }
+
+        // 그룹 -> 결과 변환
+        TArray<FCallstackGroup> Groups;
+        for (auto& Pair : CallstackGroup)
+        {
+            Groups.Emplace(Pair.Key, Pair.Value);
+        }
+
+        return Groups;
+    }
+
+    // 다른 콜스택에 포함되지 않으면 leader 그룹이며, 이를 감지하는 헬퍼 함수
+    bool IsLeaderCallstackGroup(
+        const TArray<FCallstackGroup>& CallstackGroups, int32 Idx
+    )
+    {
+        if (!CallstackGroups.IsValidIndex(Idx))
+        {
+            return false;
+        }
+
+        const FString& CriteriaCallstack = CallstackGroups[Idx].Callstack;
+        for (int32 i = 0; i < CallstackGroups.Num(); ++i)
+        {
+            if (i == Idx)
+            {
+                continue;
+            }
+
+            const FString& OtherStack = CallstackGroups[i].Callstack;
+            if (OtherStack.Contains(CriteriaCallstack))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    TArray<FLeaderCallstackGroup> BuildLeaderCallstackGroups(
+        const TArray<FCallstackGroup>& CallstackGroups
+    )
+    {
+        // 리더 그룹 판별 및 생성
+        TArray<FLeaderCallstackGroup> LeaderGroups;
+        TArray<int32> ChildGroupIndices;
+        for (int32 i = 0; i < CallstackGroups.Num(); ++i)
+        {
+            if (IsLeaderCallstackGroup(CallstackGroups, i))
+            {
+                const FCallstackGroup& Group = CallstackGroups[i];
+                LeaderGroups.Emplace(Group.Callstack, Group.GetFirstStep(), Group.Steps);
+            }
+            else
+            {
+                ChildGroupIndices.Add(i);
+            }
+        }
+
+        // 리더가 아닌 것들은 각자의 리더의 steps에 추가
+        for (int32 i = 0; i < ChildGroupIndices.Num(); ++i)
+        {
+            const FCallstackGroup& ChildGroup = CallstackGroups[ChildGroupIndices[i]];
+            for (FLeaderCallstackGroup& LeaderGroup : LeaderGroups)
+            {
+                if (LeaderGroup.Callstack.Contains(ChildGroup.Callstack))
+                {
+                    LeaderGroup.Steps.Append(ChildGroup.Steps);
+                    break;
+                }
+            }
+        }
+        return LeaderGroups;
+    }
+
+    TArray<FMergingGroup> BuildMergingGroups(
+        const SharedStepPtr& CommonStep,
+        const TArray<FLeaderCallstackGroup>& LeaderCallstackGroups,
+        const StepMap& StepsByKey)
+    {
+        TArray<FMergingGroup> Result;
+        if (!CommonStep.IsValid())
+        {
+            return Result;
+        }
+
+        for (const FLeaderCallstackGroup& LeaderGroup : LeaderCallstackGroups)
+        {
+            const SharedStepPtr& Leader = LeaderGroup.Leader;
+            const StepArray& Placeholders = LeaderGroup.Steps;
+
+            if (!Leader.IsValid() || !Leader->Node.IsValid() || Placeholders.Num() == 0)
+            {
+                continue;
+            }
+
+            SharedStepPtr Lca = FindLCA(Placeholders, StepsByKey);
+
+            FMergingGroup Group;
+            Group.CommonStep = CommonStep;
+            Group.Placeholders = Placeholders;
+
+            // 특정 switch fallthrough-like 패턴이면 마지막 placeholder가 merge 후보
+            if (IsSwitchFallthroughCase(Lca, Placeholders, StepsByKey))
+            {
+                Group.MergingPointStep = Placeholders.Last();
+                Group.bIsFallthrough = true;
+            }
+            else
+            {
+                Group.MergingPointStep = Lca;
+            }
+
+            Result.Add(MoveTemp(Group));
+        }
+
+        return Result;
+    }
+
+    // 같은 commonstep을 가르키는 placeholder들을 callstack 기준으로 그루핑 (Python build_placeholder_groups)
+    TArray<FMergingGroup> BuildPlaceholderGroups(
+        const SharedStepPtr& CommonStep,
+        const StepArray& AllPlaceholders,
+        const StepMap& StepsByKey)
+    {
+        // callstack 수집
+        TArray<FStepCallstack> StepCallstacks = BuildCallstacksPerPlaceholder(AllPlaceholders, StepsByKey);
+        // 같은 callstack끼리 먼저 묶기
+        TArray<FCallstackGroup> CallstackGroups = BuildCallstackGroups(StepCallstacks);
+        // callstack이 달라도 같은 실행 경로끼리 묶기 (leader 그룹)
+        // 여기서 리더는 그 중에서 가장 긴 실행경로를 가진 것이고
+        // callstack이 완전히 같은 sibling이면 첫번 째 것이 리더가 된다.
+        TArray<FLeaderCallstackGroup> LeaderCallstackGroups = BuildLeaderCallstackGroups(CallstackGroups);
+        // 같은 실행 경로 그룹에서 머징 포인트를 찾는다.
+        TArray<FMergingGroup> MergingGroups = BuildMergingGroups(CommonStep, LeaderCallstackGroups, StepsByKey);
+        return MergingGroups;
+
+#pragma region 기존 로직
+#if 0
+        // leader placeholder 선택
         TArray<TSharedPtr<N2CFlow::Step>> LeaderPlaceholders;
-        // candidate를 하나 뽑아 다른 placeholder들과 비교한다.
+
+        // callstack 포함 관계를 기준으로, 다른 callstack에 포함되지 않는
+        // 가장 깊은 placeholder들을 leader로 고른다.
+        // 동일한 callstack을 가진 placeholder들은 대표 1개만 leader로 남긴다.
         for (const TSharedPtr<N2CFlow::Step>& Candidate : AllPlaceholders)
         {
-            const FString& CandidateStack = CallstackByKey[Candidate->Key];
-            // candidate가 다른 placeholder의 콜스택에 포함되면 리더 아님
+            const FString& CandidateStack = StepCallstacks[Candidate->Key].Callstack;
             bool bIsLeader = true;
-            // 자기 자신을 제외한 나머지 placeholder들의 콜스택과 비교
+
+            // 다른 placeholder들과 비교
             for (const TSharedPtr<N2CFlow::Step>& Other : AllPlaceholders)
             {
+                // candidate가 리더가 되려면 다른 placeholder의 콜스택에 포함되지 않아야 한다.
+
+                // 자기 자신과 비교할 필요는 없음
                 if (Other == Candidate)
                 {
                     continue;
                 }
-                const FString& OtherStack = CallstackByKey[Other->Key];
-                // 보통은 candidate의 콜스택이 다른 placeholder의 callstack에 포함되면 리더가 될 수 없다.
+
+                const FString& OtherStack = StepCallstacks[Other->Key].Callstack;
+                // 더 깊은 다른 callstack이 CandidateStack을 포함하면 Candidate는 leader가 될 수 없다.
+                // 단, 동일한 callstack sibling이면 그중 대표 1개는 leader로 남겨야 한다.
                 if (OtherStack.Contains(CandidateStack))
                 {
                     bIsLeader = false;
-                    // 콜스택이 동일한 sibling일 경우 리더 1명은 필요
-                    // DFS 탐색 특성상 바로 윗 부모에서 시작하는 콜스택이 동일할 수 있어
-                    // sibling 중 하나는 리더가 되어야 함
                     if (OtherStack == CandidateStack)
                     {
-                        if (!LeaderPlaceholders.Contains(Other) && !LeaderPlaceholders.Contains(Candidate))
-                        {
-                            bIsLeader = true;
-                        }
+                        bIsLeader = !LeaderPlaceholders.Contains(Other) && !LeaderPlaceholders.Contains(Candidate);
                     }
                     break;
                 }
             }
+
             if (bIsLeader)
             {
                 LeaderPlaceholders.Add(Candidate);
@@ -468,10 +646,10 @@ namespace
             }
 
             // 리더가 아닌 경우에, parent str이 어떤 리더에 포함되는지 확인하고 그룹에 추가
-            const FString& Callstack = CallstackByKey[Placeholder->Key];
+            const FString& Callstack = StepCallstacks[Placeholder->Key].Callstack;
             for (const TSharedPtr<N2CFlow::Step>& Leader : LeaderPlaceholders)
             {
-                const FString& LeaderStack = CallstackByKey[Leader->Key];
+                const FString& LeaderStack = StepCallstacks[Leader->Key].Callstack;
                 if (LeaderStack.Contains(Callstack))
                 {
                     Groups[Leader].Add(Placeholder);
@@ -513,15 +691,17 @@ namespace
         }
 
         return Result;
+#endif
+#pragma endregion
     }
 
     // Create normal merge point and rewire next pointers
     // 일반 머지 포인트 생성 및 next 재배선
-    TSharedPtr<N2CFlow::Step> CreateNormalMergePoint(
-        TMap<FString, TSharedPtr<N2CFlow::Step>>& StepsByKey,
-        const TSharedPtr<N2CFlow::Step>& MergingPointCandidate,
-        const TArray<TSharedPtr<N2CFlow::Step>>& Placeholders,
-        const TSharedPtr<N2CFlow::Step>& CommonStep)
+    SharedStepPtr CreateNormalMergePoint(
+        StepMap& InOutStepsByKey,
+        const SharedStepPtr& MergingPointCandidate,
+        const StepArray& Placeholders,
+        const SharedStepPtr& CommonStep)
     {
         if (!MergingPointCandidate.IsValid() || !CommonStep.IsValid())
         {
@@ -530,7 +710,7 @@ namespace
 
         // 그루핑된 인덱스 검색
         TArray<int32> Indices;
-        for (const TSharedPtr<N2CFlow::Step>& Placeholder : Placeholders)
+        for (const SharedStepPtr& Placeholder : Placeholders)
         {
             int32 Index = CommonStep->CommonPlaceholders.IndexOfByKey(Placeholder);
             Indices.Add(Index);
@@ -544,10 +724,10 @@ namespace
         const FString GroupedIdxes = FString::Join(IndexStrings, TEXT("|"));
 
         // --- 1) 기존 parent.next 저장 ---
-        TSharedPtr<N2CFlow::Step> OldNext = MergingPointCandidate->Next;
+        SharedStepPtr OldNext = MergingPointCandidate->Next;
 
         // --- 2) merge point 생성 ---
-        TSharedPtr<N2CFlow::Step> MergePoint = MakeShared<N2CFlow::Step>();
+        SharedStepPtr MergePoint = MakeShared<N2CFlow::Step>();
         MergePoint->Key = FString::Printf(TEXT("%s_Merging_[%s]"), *CommonStep->Key, *GroupedIdxes);
         MergePoint->Node = CommonStep->Node;
         MergePoint->bIsMergingPoint = true;
@@ -557,7 +737,7 @@ namespace
         MergePoint->LogicDepth = OldNext.IsValid() ? OldNext->LogicDepth : MergingPointCandidate->LogicDepth;
 
         // step registry 등록
-        StepsByKey.Add(MergePoint->Key, MergePoint);
+        InOutStepsByKey.Add(MergePoint->Key, MergePoint);
 
         // --- 3) parent.next = merge_point 로 교체 ---
         MergingPointCandidate->Next = MergePoint;
@@ -577,7 +757,7 @@ namespace
         }
 
         // --- 6) placeholder 들 comment-out 처리 ---
-        for (const TSharedPtr<N2CFlow::Step>& Placeholder : Placeholders)
+        for (const SharedStepPtr& Placeholder : Placeholders)
         {
             MergePoint->RecordCommonPlaceholder(Placeholder);
             Placeholder->bIsCommentOut = true;
@@ -588,11 +768,11 @@ namespace
 
     // Create merge point for a narrow switch fallthrough-like output pattern.
     // switch 전체에 대한 일반 처리라기보다, 여러 case가 같은 출력 경로를 공유하는 특정 패턴용 예외 처리.
-    TSharedPtr<N2CFlow::Step> CreateFallthroughMergePoint(
-        TMap<FString, TSharedPtr<N2CFlow::Step>>& StepsByKey,
-        const TSharedPtr<N2CFlow::Step>& MergingPointCandidate,
-        const TArray<TSharedPtr<N2CFlow::Step>>& Placeholders,
-        const TSharedPtr<N2CFlow::Step>& CommonStep)
+    SharedStepPtr CreateFallthroughMergePoint(
+        StepMap& InOutStepsByKey,
+        const SharedStepPtr& MergingPointCandidate,
+        const StepArray& Placeholders,
+        const SharedStepPtr& CommonStep)
     {
         if (!MergingPointCandidate.IsValid() || !CommonStep.IsValid())
         {
@@ -601,7 +781,7 @@ namespace
 
         // 그루핑된 인덱스 검색
         TArray<int32> Indices;
-        for (const TSharedPtr<N2CFlow::Step>& Placeholder : Placeholders)
+        for (const SharedStepPtr& Placeholder : Placeholders)
         {
             int32 Index = CommonStep->CommonPlaceholders.IndexOfByKey(Placeholder);
             Indices.Add(Index);
@@ -616,7 +796,7 @@ namespace
 
         // 이 경우 마지막 placeholder가 candidate로 오며 next는 없다.
         // --- 2) merge point 생성 ---
-        TSharedPtr<N2CFlow::Step> MergePoint = MakeShared<N2CFlow::Step>();
+        SharedStepPtr MergePoint = MakeShared<N2CFlow::Step>();
         MergePoint->Key = FString::Printf(TEXT("%s_Merging_[%s]"), *CommonStep->Key, *GroupedIdxes);
         MergePoint->Node = CommonStep->Node;
         MergePoint->bIsMergingPoint = true;
@@ -626,12 +806,12 @@ namespace
         MergePoint->LogicDepth = MergingPointCandidate->LogicDepth + 1;
 
         // step registry 등록
-        StepsByKey.Add(MergePoint->Key, MergePoint);
+        InOutStepsByKey.Add(MergePoint->Key, MergePoint);
 
         MergingPointCandidate->Next = MergePoint;
 
         // --- 6) placeholder 들 comment-out 처리 ---
-        for (const TSharedPtr<N2CFlow::Step>& Placeholder : Placeholders)
+        for (const SharedStepPtr& Placeholder : Placeholders)
         {
             MergePoint->RecordCommonPlaceholder(Placeholder);
             Placeholder->bIsCommentOut = true;
@@ -643,39 +823,38 @@ namespace
 
     // 실행 트리에서 common placeholder 수집
     void CollectCommonPlaceholders(
-        const TSharedPtr<N2CFlow::Step>& Step,
-        const TMap<FString, TSharedPtr<N2CFlow::Step>>& StepsByKey,
-        TMap<FString, TArray<TSharedPtr<N2CFlow::Step>>>& PlaceholdersByCommonKey)
+        const SharedStepPtr& step,
+        const StepMap& StepsByKey,
+        TMap<SharedStepPtr, StepArray>& OutPlaceholdersByCommonKey /* Common step key별 placeholder list를 담는 통 */ )
     {
-        // placeholders_by_commonkey: Common step key별 placeholder list를 담는 통
-        if (!Step.IsValid())
+        if (!step.IsValid())
         {
             return;
         }
 
         // placeholder 발견
-        if (Step->bIsCommonPlaceholder)
+        if (step->bIsCommonPlaceholder)
         {
-            if (Step->Node.IsValid())
+            if (step->Node.IsValid())
             {
-                TSharedPtr<N2CFlow::Step> CommonStep = FindStepByKey(StepsByKey, Step->Node->Name);
+                SharedStepPtr CommonStep = FindStepByKey(StepsByKey, step->Node->Name);
                 if (CommonStep.IsValid())
                 {
-                    PlaceholdersByCommonKey.FindOrAdd(CommonStep->Key).Add(Step);
+                    OutPlaceholdersByCommonKey.FindOrAdd(CommonStep).Add(step);
                 }
             }
         }
 
         // branches
-        for (const TSharedPtr<N2CFlow::Step>& Branch : Step->Branches)
+        for (const SharedStepPtr& Branch : step->Branches)
         {
-            CollectCommonPlaceholders(Branch, StepsByKey, PlaceholdersByCommonKey);
+            CollectCommonPlaceholders(Branch, StepsByKey, OutPlaceholdersByCommonKey);
         }
 
         // next
-        if (Step->Next.IsValid())
+        if (step->Next.IsValid())
         {
-            CollectCommonPlaceholders(Step->Next, StepsByKey, PlaceholdersByCommonKey);
+            CollectCommonPlaceholders(step->Next, StepsByKey, OutPlaceholdersByCommonKey);
         }
     }
 }
@@ -689,7 +868,7 @@ bool FN2CFlowBuilder::BuildFlowDataFromGraph(UEdGraph* Graph, FN2CFlowData& OutD
     }
 
     // 그래프의 K2 노드를 수집
-    TArray<UK2Node*> Nodes;
+    K2NodeArray Nodes;
     for (UEdGraphNode* Node : Graph->Nodes)
     {
         if (UK2Node* K2Node = Cast<UK2Node>(Node))
@@ -701,7 +880,7 @@ bool FN2CFlowBuilder::BuildFlowDataFromGraph(UEdGraph* Graph, FN2CFlowData& OutD
     return BuildFlowDataFromNodes(Nodes, OutData, OutError);
 }
 
-bool FN2CFlowBuilder::BuildFlowDataFromNodes(const TArray<UK2Node*>& Nodes, FN2CFlowData& OutData, FString& OutError)
+bool FN2CFlowBuilder::BuildFlowDataFromNodes(const K2NodeArray& Nodes, FN2CFlowData& OutData, FString& OutError)
 {
     OutData = FN2CFlowData();
 
@@ -730,7 +909,7 @@ bool FN2CFlowBuilder::BuildFlowDataFromNodes(const TArray<UK2Node*>& Nodes, FN2C
 
     // 4) 머지 포인트 처리
     ResolveMergingPoints(OutData.EntryStep, OutData.StepsByKey, false);
-    for (const TPair<FString, TSharedPtr<N2CFlow::Step>>& Pair : OutData.CommonSteps)
+    for (const TPair<FString, SharedStepPtr>& Pair : OutData.CommonSteps)
     {
         ResolveMergingPoints(Pair.Value, OutData.StepsByKey, false);
     }
@@ -759,7 +938,7 @@ bool FN2CFlowBuilder::BuildFlowJsonFromGraph(UEdGraph* Graph, FString& OutJson, 
     return true;
 }
 
-bool FN2CFlowBuilder::BuildFlowJsonFromNodes(const TArray<UK2Node*>& Nodes, FString& OutJson, FString& OutError)
+bool FN2CFlowBuilder::BuildFlowJsonFromNodes(const K2NodeArray& Nodes, FString& OutJson, FString& OutError)
 {
     FN2CFlowData Data;
     if (!BuildFlowDataFromNodes(Nodes, Data, OutError))
@@ -780,13 +959,14 @@ bool FN2CFlowBuilder::BuildFlowJsonFromNodes(const TArray<UK2Node*>& Nodes, FStr
     return true;
 }
 
-bool FN2CFlowBuilder::BuildNodesFromK2Nodes(const TArray<UK2Node*>& Nodes,
-                                            TMap<FString, TSharedPtr<N2CFlow::Node>>& OutNodesByName,
-                                            N2CFlow::FGUIDAlias& OutGuidAlias)
+// N2CFlow::Node 노드 정보를 UK2Node를 이용해서 생성하고 
+// {Name - Node} 맵을 생성한다. 
+bool FN2CFlowBuilder::BuildNodesFromK2Nodes(const K2NodeArray& Nodes,
+                                            NodeMap& OutNodesByName, /*{노드 이름 :: 노드}*/
+                                            N2CFlow::FGUIDAlias& OutGuidAlias /*노드, 핀의 GUID를 간단한 ID로 사용하기 위한 객체*/)
 {
     OutNodesByName.Reset();
-    // 1) 먼저 모든 노드/핀 정보를 수집하고
-    // 2) 그 다음 링크를 구성한다.
+    // K2Node들을 순회
     for (UK2Node* K2Node : Nodes)
     {
         if (!K2Node)
@@ -795,12 +975,12 @@ bool FN2CFlowBuilder::BuildNodesFromK2Nodes(const TArray<UK2Node*>& Nodes,
         }
 
         const FString NodeName = K2Node->GetName();
-        const FString NodeGuid = OutGuidAlias.AcquireNodeID(K2Node->NodeGuid);
+        const FString NodeGuid = OutGuidAlias.AcquireNodeID(K2Node->NodeGuid); // GUID 말고 심플 ID로 변환
 
-        // 노드 생성
+        // N2CFlow::Node 노드 생성
         TSharedPtr<N2CFlow::Node> FlowNode = MakeShared<N2CFlow::Node>(NodeName, NodeGuid);
 
-        // 핀 정보 순회
+        // N2CFlow::Node에 핀징보 생성
         for (UEdGraphPin* Pin : K2Node->Pins)
         {
             if (!Pin)
@@ -809,7 +989,7 @@ bool FN2CFlowBuilder::BuildNodesFromK2Nodes(const TArray<UK2Node*>& Nodes,
             }
 
             const FString PinName = PinDisplayName(Pin);
-            const FString PinGuid = OutGuidAlias.AcquirePinID(Pin->PinId);
+            const FString PinGuid = OutGuidAlias.AcquirePinID(Pin->PinId); // GUID 말고 심플 ID로 변환
             const bool bIsExec = (Pin->PinType.PinCategory == TEXT("exec"));
             const bool bIsOutput = (Pin->Direction == EGPD_Output);
 
@@ -891,24 +1071,26 @@ bool FN2CFlowBuilder::BuildNodesFromK2Nodes(const TArray<UK2Node*>& Nodes,
     return OutNodesByName.Num() > 0;
 }
 
-void FN2CFlowBuilder::BuildStepsFromNodes(const TMap<FString, TSharedPtr<N2CFlow::Node>>& NodesByName,
-                                         TMap<FString, TSharedPtr<N2CFlow::Step>>& OutStepsByKey)
+// N2CFlow::Node 노드에 대한 N2CFlow::Step을 생성하여 
+// {Name - Step} 맵을 생성한다.
+void FN2CFlowBuilder::BuildStepsFromNodes(const NodeMap& NodesByName,
+                                         StepMap& OutStepsByKey)
 {
     OutStepsByKey.Reset();
-    // 모든 노드에 대한 step을 미리 생성하여 name을 키로 매핑
     for (const TPair<FString, TSharedPtr<N2CFlow::Node>>& Pair : NodesByName)
     {
-        TSharedPtr<N2CFlow::Step> Step = MakeShared<N2CFlow::Step>();
+        SharedStepPtr Step = MakeShared<N2CFlow::Step>();
         Step->Node = Pair.Value;
         Step->Key = Pair.Key;
         OutStepsByKey.Add(Pair.Key, Step);
     }
 }
 
-TSharedPtr<N2CFlow::Step> FN2CFlowBuilder::FindEntryStep(const TMap<FString, TSharedPtr<N2CFlow::Step>>& StepsByKey)
+// 주어진 {Name - Step} 맵에서 Entry Step을 반환
+SharedStepPtr FN2CFlowBuilder::FindEntryStep(const StepMap& StepsByKey)
 {
     // FunctionEntry 노드를 entry로 사용
-    for (const TPair<FString, TSharedPtr<N2CFlow::Step>>& Pair : StepsByKey)
+    for (const TPair<FString, SharedStepPtr>& Pair : StepsByKey)
     {
         if (Pair.Key.Contains(TEXT("K2Node_FunctionEntry")))
         {
@@ -918,21 +1100,22 @@ TSharedPtr<N2CFlow::Step> FN2CFlowBuilder::FindEntryStep(const TMap<FString, TSh
     return nullptr;
 }
 
+// 실행 흐름을 생성한다.
 bool FN2CFlowBuilder::BuildExecFlow(
-    const TMap<FString, TSharedPtr<N2CFlow::Node>>& NodesByName,
-    TMap<FString, TSharedPtr<N2CFlow::Step>>& StepsByKey,
-    TMap<FString, TSharedPtr<N2CFlow::Step>>& CommonSteps,
-    const TSharedPtr<N2CFlow::Step>& EntryStep,
+    const NodeMap& NodesByName,
+    StepMap& StepsByKey,
+    StepMap& CommonSteps,
+    const SharedStepPtr& EntryStep,
     FString& OutError)
 {
     // DFS 상태를 유지하는 스택
-    TArray<TSharedPtr<N2CFlow::Step>> Stack;
+    StepArray Stack;
     Stack.Add(EntryStep);
     int32 LogicDepth = EntryStep->LogicDepth;
 
     while (Stack.Num() > 0)
     {
-        TSharedPtr<N2CFlow::Step> CurrentStep = Stack.Last();
+        SharedStepPtr CurrentStep = Stack.Last();
         // current step의 outlink idx를 1 증가
         CurrentStep->NextOutlinkIdx();
 
@@ -953,7 +1136,7 @@ bool FN2CFlowBuilder::BuildExecFlow(
         }
 
         const FString NextNodeName = Link->ToPin.NodeName;
-        TSharedPtr<N2CFlow::Step> NextStep = FindStepByKey(StepsByKey, NextNodeName);
+        SharedStepPtr NextStep = FindStepByKey(StepsByKey, NextNodeName);
         // 다음 Step이 유효하지 않을 때, 예외 처리.
         if (!NextStep.IsValid())
         {
@@ -964,13 +1147,19 @@ bool FN2CFlowBuilder::BuildExecFlow(
         // next step 업데이트
         NextStep->AppendFromPin(*Link);
 
-        // 다음이 머지되는 스텝이라면, Common Logic 표시용 placeholder로 대체
+        // 여러 step의 out execute pin --> next step 인 상황,  
+        // 즉, 여러 스텝에서 공통으로 연결된 스텝이라면
+        // 혹은, 여러 스텝에서 머지되는 스텝이라면, 
+        // next step으로 연결하지 않고, Common Logic 표시용 placeholder step을 만들어서 대체하고
+        // next step은 common step으로 분류한다.
+        // IsCommonStep를 살펴보면, Step이 캐시하고 있는 N2CFlow::Node의 ExecInLinks 갯수가 1초과인지를 살핀다.
         if (NextStep->IsCommonStep())
         {
-            // 이미 common steps로 등록된 경우는 재사용
+            // 아직 CommonSteps에 등록되지 않은 경우,
+            // CommonSteps에 등록하고, 
+            // common step의 실행흐름을 구축한다.
             if (!CommonSteps.Contains(NextNodeName))
             {
-                // 아직 common flow로 등록되지 않은 경우
                 CommonSteps.Add(NextNodeName, NextStep);
                 NextStep->MakeAsEntry(0);
                 if (!BuildExecFlow(NodesByName, StepsByKey, CommonSteps, NextStep, OutError))
@@ -978,17 +1167,22 @@ bool FN2CFlowBuilder::BuildExecFlow(
                     return false;
                 }
             }
-
-            // Common Logic 표시용 placeholder 생성
-            TSharedPtr<N2CFlow::Step> CommonPlaceholder = MakeShared<N2CFlow::Step>();
+            
+            // NextStep에 대한 링크 대신에 
+            // Common Step으로 이어진다는 표시용 placeholder 생성하여 연결한다.
+            SharedStepPtr CommonPlaceholder = MakeShared<N2CFlow::Step>();
             CommonPlaceholder->Key = FString::Printf(TEXT("%s_PlaceHolder_%d"), *NextNodeName, NextStep->FromPins.Num() - 1);
+            // 이 부분이 이상할 수 있으나, 원래는 common step이  연결되어야 할 것을 placeholder로 연결하고 있으나. 
+            // common step의 숏컷 정도로 생각하자. 
+            // todo. 시간이 되면 Node가 아니라 다른 변수에 넣는 것이 더 명확하겠다, 좀 더 나가면 step의 타입이 달라져야 하겠다
             CommonPlaceholder->Node = NextStep->Node;
             CommonPlaceholder->AppendFromPin(*Link);
             CommonPlaceholder->bIsCommonPlaceholder = true;
             CommonPlaceholder->bIsBranched = CurrentStep->HasBranches();
             CommonPlaceholder->LogicDepth = LogicDepth;
-
+            // 생성된 placeholder 스텝을 저장
             StepsByKey.Add(CommonPlaceholder->Key, CommonPlaceholder);
+            // common step에 생성된 placeholder 스텝을 기록(나중에 참조하기 편하기 위해서)
             NextStep->RecordCommonPlaceholder(CommonPlaceholder);
 
             // 실행 흐름 연결
@@ -1000,6 +1194,9 @@ bool FN2CFlowBuilder::BuildExecFlow(
             {
                 CurrentStep->SetNext(CommonPlaceholder);
             }
+            
+            // common step이기 때문에 스택에 넣고 처리 하지 않는다. 
+            // 이 common step의 흐름은 BuildExecFlow 함수로 이미 생성하였음.
         }
         else
         {
@@ -1017,7 +1214,7 @@ bool FN2CFlowBuilder::BuildExecFlow(
                 CurrentStep->SetNext(NextStep);
             }
 
-            // 자식 노드를 스택에 push
+            // 스택에 push하여 다음 흐름을 찾을 수 있도록 한다.
             Stack.Add(NextStep);
             LogicDepth = NextStep->PushLogicDepth(LogicDepth);
         }
@@ -1026,19 +1223,23 @@ bool FN2CFlowBuilder::BuildExecFlow(
     return true;
 }
 
-void FN2CFlowBuilder::ResolveMergingPoints(const TSharedPtr<N2CFlow::Step>& EntryStep,
-                                          TMap<FString, TSharedPtr<N2CFlow::Step>>& StepsByKey,
+void FN2CFlowBuilder::ResolveMergingPoints(const SharedStepPtr& EntryStep,
+                                          StepMap& StepsByKey,
                                           bool bDebug)
 {
+    // common step은 여러 곳에서 들어오는 작은 서브 로직
+    // 따라서 하나의 common step에 연결된 placeholder stepd이 여러개이다
     // { commonstep_key : [common_placeholder_step, ...] } 형태
-    TMap<FString, TArray<TSharedPtr<N2CFlow::Step>>> PlaceholdersByCommonKey;
+    // StepsByKey 에서 IsCommonStep이 true인 것들을 찾아 처리 할 수 있을 것 같지만, 
+    // Entry에서 연결되지 않은 step오 isCommonStep이 true 일 수 있어서 
+    // entry step에서 순회를 하면서 찾고 있다. 
+    // todo. 다른 방법이라면 PlaceHolder용 step을 찾아서 그것만으로 매핑을 만드는 방법이 있다, 일단 진행하고 나중에 다시 보자
+    TMap<SharedStepPtr, StepArray> PlaceholdersByCommonKey;
     CollectCommonPlaceholders(EntryStep, StepsByKey, PlaceholdersByCommonKey);
 
-    for (const TPair<FString, TArray<TSharedPtr<N2CFlow::Step>>>& Pair : PlaceholdersByCommonKey)
+    for (const TPair<SharedStepPtr, StepArray>& Pair : PlaceholdersByCommonKey)
     {
-        const TArray<TSharedPtr<N2CFlow::Step>>& Placeholders = Pair.Value;
-        // placeholder들 중에 서로 묶일 수 있을 만한 그루핑
-        TArray<FMergingGroup> Groups = BuildPlaceholderGroups(Placeholders, StepsByKey);
+        TArray<FMergingGroup> Groups = BuildPlaceholderGroups(Pair.Key, Pair.Value, StepsByKey);
 
         // todo. 부모가 switch 계열일 때 일반 merge를 막아야 하는지 검토 필요.
         // 단, 아래 fallthrough 처리는 모든 switch가 아니라 특정 출력 패턴에만 적용되는 예외다.
@@ -1071,7 +1272,7 @@ TSharedPtr<FJsonObject> FN2CFlowBuilder::FlowDataToJsonObject(const FN2CFlowData
 
     // common step 키 목록
     TArray<TSharedPtr<FJsonValue>> CommonKeys;
-    for (const TPair<FString, TSharedPtr<N2CFlow::Step>>& Pair : Data.CommonSteps)
+    for (const TPair<FString, SharedStepPtr>& Pair : Data.CommonSteps)
     {
         CommonKeys.Add(MakeShared<FJsonValueString>(Pair.Key));
     }
@@ -1082,7 +1283,7 @@ TSharedPtr<FJsonObject> FN2CFlowBuilder::FlowDataToJsonObject(const FN2CFlowData
 
     // 모든 step을 JSON으로 저장
     TSharedPtr<FJsonObject> StepsObject = MakeShared<FJsonObject>();
-    for (const TPair<FString, TSharedPtr<N2CFlow::Step>>& Pair : Data.StepsByKey)
+    for (const TPair<FString, SharedStepPtr>& Pair : Data.StepsByKey)
     {
         if (Pair.Value.IsValid())
         {
@@ -1118,7 +1319,7 @@ bool FN2CFlowBuilder::BuildFlowTextFromGraph(UEdGraph* Graph, FString& OutText, 
     return true;
 }
 
-bool FN2CFlowBuilder::BuildFlowTextFromNodes(const TArray<UK2Node*>& Nodes, FString& OutText, FString& OutError)
+bool FN2CFlowBuilder::BuildFlowTextFromNodes(const K2NodeArray& Nodes, FString& OutText, FString& OutError)
 {
     FN2CFlowData Data;
     if (!BuildFlowDataFromNodes(Nodes, Data, OutError))

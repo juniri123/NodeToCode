@@ -8,6 +8,14 @@ class UK2Node;
 class FJsonObject;
 
 #pragma region ODS
+using K2NodeArray = TArray<UK2Node*>;
+
+using NodeMap = TMap<FString, TSharedPtr<N2CFlow::Node>>;
+
+using SharedStepPtr = TSharedPtr<N2CFlow::Step>;
+using StepArray = TArray<SharedStepPtr>;
+using StepMap = TMap<FString, SharedStepPtr>;
+
 namespace N2CFlow
 {
     struct Node;
@@ -16,10 +24,10 @@ namespace N2CFlow
 
 struct FN2CFlowData
 {
-    TMap<FString, TSharedPtr<N2CFlow::Node>> NodesByName;
-    TMap<FString, TSharedPtr<N2CFlow::Step>> StepsByKey;
-    TSharedPtr<N2CFlow::Step> EntryStep;
-    TMap<FString, TSharedPtr<N2CFlow::Step>> CommonSteps;
+    NodeMap NodesByName;
+    StepMap StepsByKey;
+    SharedStepPtr EntryStep;
+    StepMap CommonSteps;
     N2CFlow::FGUIDAlias GuidAlias;
 };
 
@@ -27,27 +35,27 @@ class FN2CFlowBuilder
 {
     public:
         static bool BuildFlowDataFromGraph(UEdGraph* Graph, FN2CFlowData& OutData, FString& OutError);
-        static bool BuildFlowDataFromNodes(const TArray<UK2Node*>& Nodes, FN2CFlowData& OutData, FString& OutError);
+        static bool BuildFlowDataFromNodes(const K2NodeArray& Nodes, FN2CFlowData& OutData, FString& OutError);
         static bool BuildFlowJsonFromGraph(UEdGraph* Graph, FString& OutJson, FString& OutError);
-        static bool BuildFlowJsonFromNodes(const TArray<UK2Node*>& Nodes, FString& OutJson, FString& OutError);
+        static bool BuildFlowJsonFromNodes(const K2NodeArray& Nodes, FString& OutJson, FString& OutError);
         /** Flow 텍스트를 그래프에서 생성 */
         static bool BuildFlowTextFromGraph(UEdGraph* Graph, FString& OutText, FString& OutError);
         /** Flow 텍스트를 노드 배열에서 생성 */
-        static bool BuildFlowTextFromNodes(const TArray<UK2Node*>& Nodes, FString& OutText, FString& OutError);
+        static bool BuildFlowTextFromNodes(const K2NodeArray& Nodes, FString& OutText, FString& OutError);
 
     private:
-        static bool BuildNodesFromK2Nodes(const TArray<UK2Node*>& Nodes,
-                                          TMap<FString, TSharedPtr<N2CFlow::Node>>& OutNodesByName,
+        static bool BuildNodesFromK2Nodes(const K2NodeArray& Nodes,
+                                          NodeMap& OutNodesByName,
                                           N2CFlow::FGUIDAlias& OutGuidAlias);
-        static void BuildStepsFromNodes(const TMap<FString, TSharedPtr<N2CFlow::Node>>& NodesByName, TMap<FString, TSharedPtr<N2CFlow::Step>>& OutStepsByKey);
-        static TSharedPtr<N2CFlow::Step> FindEntryStep(const TMap<FString, TSharedPtr<N2CFlow::Step>>& StepsByKey);
-        static bool BuildExecFlow(const TMap<FString, TSharedPtr<N2CFlow::Node>>& NodesByName,
-                                TMap<FString, TSharedPtr<N2CFlow::Step>>& StepsByKey,
-                                TMap<FString, TSharedPtr<N2CFlow::Step>>& CommonSteps,
-                                const TSharedPtr<N2CFlow::Step>& EntryStep,
+        static void BuildStepsFromNodes(const NodeMap& NodesByName, StepMap& OutStepsByKey);
+        static SharedStepPtr FindEntryStep(const StepMap& StepsByKey);
+        static bool BuildExecFlow(const NodeMap& NodesByName,
+                                StepMap& StepsByKey,
+                                StepMap& CommonSteps,
+                                const SharedStepPtr& EntryStep,
                                 FString& OutError);
-        static void ResolveMergingPoints(const TSharedPtr<N2CFlow::Step>& EntryStep,
-                                        TMap<FString, TSharedPtr<N2CFlow::Step>>& StepsByKey,
+        static void ResolveMergingPoints(const SharedStepPtr& EntryStep,
+                                        StepMap& StepsByKey,
                                         bool bDebug);
 
         static TSharedPtr<FJsonObject> FlowDataToJsonObject(const FN2CFlowData& Data);
