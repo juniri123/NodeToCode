@@ -23,7 +23,9 @@ namespace
         bool bIsFallthrough = false;
     };
 
-    // 같은 callstack을 가진 step들을 하나의 그룹으로 묶는다.
+    // 같은 분기 트리를 공유하는 callstack들을 
+    // 가장 깊은 callstack을 leader로 지정하고 
+    // 그룹으로 묶는다
     struct FLeaderCallstackGroup
     {
         FString Callstack;
@@ -51,7 +53,7 @@ namespace
     };
 
     // 로직 depth만큼 indent prefix 생성
-    static FString MakeIndentPrefix(int32 Depth)
+    FString MakeIndentPrefix(int32 Depth)
     {
         FString Result;
         for (int32 i = 0; i < Depth; ++i)
@@ -85,12 +87,12 @@ namespace
         return Pin.bIsExec ? TEXT("exec") : TEXT("");
     }
 
-    FString DisplayNodeGuid(const FString& Guid, const N2CFlow::FGUIDAlias& GuidAlias)
+    FString SimpleNodeGuid(const FString& Guid, const N2CFlow::FGUIDAlias& GuidAlias)
     {
         return GuidAlias.ResolveNodeID(Guid);
     }
 
-    FString DisplayPinGuid(const FString& Guid, const N2CFlow::FGUIDAlias& GuidAlias)
+    FString SimplePinGuid(const FString& Guid, const N2CFlow::FGUIDAlias& GuidAlias)
     {
         return GuidAlias.ResolvePinID(Guid);
     }
@@ -121,8 +123,8 @@ namespace
             for (const N2CFlow::Pin& Pin : Step->FromPins)
             {
                 const FString PinName = FlowPinDisplayName(Pin);
-                const FString PinGuid = DisplayPinGuid(Pin.Guid, GuidAlias);
-                const FString NodeGuid = DisplayNodeGuid(Pin.NodeGuid, GuidAlias);
+                const FString PinGuid = SimplePinGuid(Pin.Guid, GuidAlias);
+                const FString NodeGuid = SimpleNodeGuid(Pin.NodeGuid, GuidAlias);
                 Parts.Add(FString::Printf(TEXT("%s📌%s::%s from (📋%s::%s)"),
                                         *PrefixIcon,
                                         *PinName,
@@ -134,7 +136,7 @@ namespace
         }
 
         const FString CommentOut = Step->bIsCommentOut ? TEXT("//") : TEXT("");
-        const FString StepNodeGuid = DisplayNodeGuid(Step->Node->Guid, GuidAlias);
+        const FString StepNodeGuid = SimpleNodeGuid(Step->Node->Guid, GuidAlias);
 
         // Common Logic Placeholder 처리
         if (Step->bIsCommonPlaceholder)
@@ -170,8 +172,8 @@ namespace
             for (const N2CFlow::Pin& Pin : Step->FromPins)
             {
                 const FString PinName = FlowPinDisplayName(Pin);
-                const FString PinGuid = DisplayPinGuid(Pin.Guid, GuidAlias);
-                const FString NodeGuid = DisplayNodeGuid(Pin.NodeGuid, GuidAlias);
+                const FString PinGuid = SimplePinGuid(Pin.Guid, GuidAlias);
+                const FString NodeGuid = SimpleNodeGuid(Pin.NodeGuid, GuidAlias);
                 Lines.Add(FString::Printf(TEXT("%s📌%s::%s from (📋%s::%s)"),
                                         *IndentPrefix,
                                         *PinName,
@@ -201,7 +203,7 @@ namespace
             {
                 if (Placeholder.IsValid() && Placeholder->Node.IsValid())
                 {
-                    const FString PlaceholderNodeGuid = DisplayNodeGuid(Placeholder->Node->Guid, GuidAlias);
+                    const FString PlaceholderNodeGuid = SimpleNodeGuid(Placeholder->Node->Guid, GuidAlias);
                     Lines.Add(FString::Printf(TEXT("%s%s (📋%s::%s)"),
                                             *IndentPrefix,
                                             *Placeholder->Key,

@@ -201,41 +201,10 @@ namespace
         return Lines;
     }
 
-    TArray<TSharedPtr<N2CFlow::Step>> CollectPrintOrder_01(const TSharedPtr<N2CFlow::Step>& RootStep)
-    {
-        TArray<TSharedPtr<N2CFlow::Step>> OrderedSteps;
-        if (!RootStep.IsValid())
-        {
-            return OrderedSteps;
-        }
-
-        TArray<TSharedPtr<N2CFlow::Step>> Stack;
-        Stack.Add(RootStep);
-
-        while (Stack.Num() > 0)
-        {
-            TSharedPtr<N2CFlow::Step> Current = Stack.Pop();
-            OrderedSteps.Add(Current);
-
-            // Next는 Branches가 모두 처리된 후 출력되어야 하므로 먼저 push한다.
-            if (Current->Next.IsValid())
-            {
-                Stack.Add(Current->Next);
-            }
-
-            // LIFO 스택이므로 Branches는 역순 push해야 branch[0]부터 출력된다.
-            for (int32 BranchIdx = Current->Branches.Num() - 1; BranchIdx >= 0; --BranchIdx)
-            {
-                if (Current->Branches[BranchIdx].IsValid())
-                {
-                    Stack.Add(Current->Branches[BranchIdx]);
-                }
-            }
-        }
-
-        return OrderedSteps;
-    }
-
+    
+    // 출력 순회 중인 Step 1개를 명시적인 스택 프레임으로 표현한다.
+    // Step의 branch들을 어디까지 출력했는지, Next를 이미 출력했는지를 저장해서
+    // "현재 Step -> 모든 Branch -> Next" 순서를 비재귀로 유지한다.
     struct FPrintFrame
     {
         TSharedPtr<N2CFlow::Step> Step;
@@ -273,7 +242,9 @@ namespace
         }
     };
 
-    TArray<TSharedPtr<N2CFlow::Step>> CollectPrintOrder_02(const TSharedPtr<N2CFlow::Step>& RootStep)
+    // 출력한 Step들을 순서대로 모은다.
+    // 순서는 "현재 Step -> Branches 순회 -> Next"
+    TArray<TSharedPtr<N2CFlow::Step>> CollectPrintOrder(const TSharedPtr<N2CFlow::Step>& RootStep)
     {
         TArray<TSharedPtr<N2CFlow::Step>> OutOrderedSteps;
         if (!RootStep.IsValid())
@@ -282,13 +253,16 @@ namespace
         }
 
         TArray<FPrintFrame> TraverseStack;
+        // RootStep 적재
         TraverseStack.Emplace(RootStep);
-		OutOrderedSteps.Add(RootStep);
+        OutOrderedSteps.Add(RootStep);
 
         while (TraverseStack.Num() > 0)
         {
             FPrintFrame& Frame = TraverseStack.Last();
 
+            // Branch가 남아 있으면 먼저 들어간다.
+            // 새 frame을 push해 두면 해당 branch의 하위 branch/next를 모두 처리한 뒤 여기로 돌아온다.
             const TSharedPtr<N2CFlow::Step> Branch = Frame.NextBranch();
             if (Branch.IsValid())
             {
@@ -297,6 +271,7 @@ namespace
                 continue;
             }
 
+            // 모든 branch를 처리한 뒤에야 Next로 진행한다.
             const TSharedPtr<N2CFlow::Step> Next = Frame.Next();
             if (Next.IsValid())
             {
@@ -305,6 +280,7 @@ namespace
                 continue;
             }
 
+            // 더 처리할 branch/next가 없으면 이 Step의 순회를 끝낸다.
             TraverseStack.Pop();
         }
 
@@ -315,7 +291,7 @@ namespace
     TArray<FString> PrintSteps_01(const TSharedPtr<N2CFlow::Step>& RootStep, const N2CFlow::FGUIDAlias& GuidAlias)
     {
         TArray<FString> Lines;
-        const TArray<TSharedPtr<N2CFlow::Step>> OrderedSteps = CollectPrintOrder_02(RootStep);
+        const TArray<TSharedPtr<N2CFlow::Step>> OrderedSteps = CollectPrintOrder(RootStep);
         for (const TSharedPtr<N2CFlow::Step>& Current : OrderedSteps)
         {
             Lines.Append(PrintSingleStep_01(Current, false, GuidAlias));
