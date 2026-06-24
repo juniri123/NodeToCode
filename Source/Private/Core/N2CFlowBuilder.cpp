@@ -9,6 +9,7 @@
 #include "Dom/JsonValue.h"
 #include "Serialization/JsonSerializer.h"
 #include "Serialization/JsonWriter.h"
+#include "Utils/N2CLogger.h"
 
 #pragma region ODS
 namespace
@@ -53,8 +54,13 @@ namespace
     };
 
     // 로직 depth만큼 indent prefix 생성
-    FString MakeIndentPrefix(int32 Depth)
+    FString MakeIndentPrefix(int32 Depth, bool bNoIndent)
     {
+        if (bNoIndent)
+        {
+            return TEXT("");
+        }
+
         FString Result;
         for (int32 i = 0; i < Depth; ++i)
         {
@@ -105,7 +111,7 @@ namespace
     }
 
     // 단일 Step을 텍스트 라인으로 변환
-    TArray<FString> PrintSingleStep(const SharedStepPtr& Step, bool bWithIndent, const N2CFlow::FGUIDAlias& GuidAlias)
+    TArray<FString> PrintSingleStep(const SharedStepPtr& Step, bool bNoIndent, const N2CFlow::FGUIDAlias& GuidAlias)
     {
         TArray<FString> Lines;
         if (!Step.IsValid() || !Step->Node.IsValid())
@@ -113,7 +119,7 @@ namespace
             return Lines;
         }
 
-        const FString IndentPrefix = bWithIndent ? MakeIndentPrefix(Step->LogicDepth) : TEXT("");
+        const FString IndentPrefix = MakeIndentPrefix(Step->LogicDepth, bNoIndent);
 
         FString BranchLabel;
         if (Step->FromPins.Num() > 0)
@@ -144,7 +150,7 @@ namespace
             if (Step->bIsBranched)
             {
                 Lines.Add(IndentPrefix + BranchLabel);
-                const FString CommonIndent = MakeIndentPrefix(Step->LogicDepth + 1);
+                const FString CommonIndent = MakeIndentPrefix(Step->LogicDepth + 1, false);
                 Lines.Add(FString::Printf(TEXT("%s%s↪️ Placeholder::%s for 📋%s::%s"),
                                         *CommonIndent,
                                         *CommentOut,
@@ -219,7 +225,7 @@ namespace
         if (Step->bIsBranched)
         {
             Lines.Add(IndentPrefix + BranchLabel);
-            const FString BranchedIndent = MakeIndentPrefix(Step->LogicDepth + 1);
+            const FString BranchedIndent = MakeIndentPrefix(Step->LogicDepth + 1, false);
             Lines.Add(FString::Printf(TEXT("%s%s📋%s::%s"),
                                     *BranchedIndent,
                                     *CommentOut,
@@ -238,21 +244,100 @@ namespace
         return Lines;
     }
 
+    // 출력 순회 중인 Step 1개를 명시적인 스택 프레임으로 표현한다.
+    // Step의 branch들을 어디까지 출력했는지, Next를 이미 출력했는지를 저장해서
+    // "현재 Step -> 모든 Branch -> Next" 순서를 비재귀로 유지한다.
+    struct FPrintFrame
+    {
+        SharedStepPtr Step;
+        int32 NextBranchIdx = 0;
+        bool bNextProcessed = false;
+
+        explicit FPrintFrame(const SharedStepPtr& InStep)
+            : Step(InStep)
+        {
+        }
+
+        SharedStepPtr NextBranch()
+        {
+            if (NextBranchIdx < Step->Branches.Num())
+            {
+                const SharedStepPtr Branch = Step->Branches[NextBranchIdx++];
+                if (!Branch.IsValid())
+                {
+                    FN2CLogger::Get().LogError(TEXT("Invalid branch in print traversal"));
+                }
+                return Branch;
+            }
+            return nullptr;
+        }
+
+        SharedStepPtr Next()
+        {
+            if (bNextProcessed)
+            {
+                return nullptr;
+            }
+
+            bNextProcessed = true;
+            return Step->Next;
+        }
+    };
+
+    // 출력한 Step들을 순서대로 모은다.
+    // 순서는 "현재 Step -> Branches 순회 -> Next"
+    StepArray CollectPrintOrder(const SharedStepPtr& RootStep)
+    {
+        StepArray OutOrderedSteps;
+        if (!RootStep.IsValid())
+        {
+            return OutOrderedSteps;
+        }
+
+        TArray<FPrintFrame> TraverseStack;
+        // RootStep 적재
+        TraverseStack.Emplace(RootStep);
+        OutOrderedSteps.Add(RootStep);
+
+        while (TraverseStack.Num() > 0)
+        {
+            FPrintFrame& Frame = TraverseStack.Last();
+
+            // Branch가 남아 있으면 먼저 들어간다.
+            // 새 frame을 push해 두면 해당 branch의 하위 branch/next를 모두 처리한 뒤 여기로 돌아온다.
+            const SharedStepPtr Branch = Frame.NextBranch();
+            if (Branch.IsValid())
+            {
+                TraverseStack.Emplace(Branch);
+                OutOrderedSteps.Add(Branch);
+                continue;
+            }
+
+            // 모든 branch를 처리한 뒤에야 Next로 진행한다.
+            const SharedStepPtr Next = Frame.Next();
+            if (Next.IsValid())
+            {
+                TraverseStack.Emplace(Next);
+                OutOrderedSteps.Add(Next);
+                continue;
+            }
+
+            // 더 처리할 branch/next가 없으면 이 Step의 순회를 끝낸다.
+            TraverseStack.Pop();
+        }
+
+        return OutOrderedSteps;
+    }
+
     // 실행 흐름을 문자열 리스트로 출력
     TArray<FString> PrintSteps(const SharedStepPtr& Step, const N2CFlow::FGUIDAlias& GuidAlias)
     {
         TArray<FString> Lines;
-        if (!Step.IsValid())
+        const StepArray OrderedSteps = CollectPrintOrder(Step);
+        for (const SharedStepPtr& Current : OrderedSteps)
         {
-            return Lines;
+            Lines.Append(PrintSingleStep(Current, false, GuidAlias));
         }
-
-        Lines.Append(PrintSingleStep(Step, true, GuidAlias));
-        for (const SharedStepPtr& Child : Step->Branches)
-        {
-            Lines.Append(PrintSteps(Child, GuidAlias));
-        }
-        Lines.Append(PrintSteps(Step->Next, GuidAlias));
         return Lines;
     }
     

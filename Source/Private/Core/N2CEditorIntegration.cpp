@@ -37,7 +37,6 @@
 #include "ISourceControlRevision.h"
 #include "ISourceControlState.h"
 #include "SourceControlOperations.h"
-#include "Core/N2CFlowBuilder_01.h"
 
 #if PLATFORM_WINDOWS
 #include "Windows/WindowsPlatformApplicationMisc.h"
@@ -808,50 +807,31 @@ bool FN2CEditorIntegration::SaveParsedFlowFiles(const FN2CFlowData& FlowData, co
         return false;
     }
 
-    // 재귀 방식
-    FString FlowTextV1;
-    FString FlowTextErrorV1;
-    if (!FN2CFlowBuilder::BuildFlowTextFromNodes(CollectedNodes, FlowTextV1, FlowTextErrorV1))
+    FString FlowText;
+    FString FlowTextError;
+    if (!FN2CFlowBuilder::BuildFlowTextFromNodes(CollectedNodes, FlowText, FlowTextError))
     {
-        FN2CLogger::Get().LogError(FString::Printf(TEXT("Failed to build flow text v1: %s"), *FlowTextErrorV1));
-        return false;
-    }
-
-    // 비재귀 방식
-    FString FlowTextV2;
-    FString FlowTextErrorV2;
-    if (!FN2CFlowBuilder_01::BuildFlowTextFromNodes_01(CollectedNodes, FlowTextV2, FlowTextErrorV2))
-    {
-        FN2CLogger::Get().LogError(FString::Printf(TEXT("Failed to build flow text v2: %s"), *FlowTextErrorV2));
+        FN2CLogger::Get().LogError(FString::Printf(TEXT("Failed to build flow text: %s"), *FlowTextError));
         return false;
     }
 
     const FString ParsedJsonPath = FPaths::Combine(FlowDir, FString::Printf(TEXT("%s_parsed.json"), *SafeGraphName));
     const FString FlowJsonPath = FPaths::Combine(FlowDir, FString::Printf(TEXT("%s_flow.json"), *SafeGraphName));
-    const FString FlowTextPathV1 = FPaths::Combine(FlowDir, FString::Printf(TEXT("%s_flow_v1.txt"), *SafeGraphName));
-    const FString FlowTextPathV2 = FPaths::Combine(FlowDir, FString::Printf(TEXT("%s_flow_v2.txt"), *SafeGraphName));
     const FString FlowTextPath = FPaths::Combine(FlowDir, FString::Printf(TEXT("%s_flow.txt"), *SafeGraphName));
+    
     if (!FFileHelper::SaveStringToFile(ParsedJson, *ParsedJsonPath))
     {
         FN2CLogger::Get().LogError(FString::Printf(TEXT("Failed to save parsed JSON: %s"), *ParsedJsonPath));
         return false;
     }
+    
     if (!FFileHelper::SaveStringToFile(FlowJson, *FlowJsonPath))
     {
         FN2CLogger::Get().LogError(FString::Printf(TEXT("Failed to save flow JSON: %s"), *FlowJsonPath));
         return false;
     }
-    if (!FFileHelper::SaveStringToFile(FlowTextV1, *FlowTextPathV1))
-    {
-        FN2CLogger::Get().LogError(FString::Printf(TEXT("Failed to save flow text v1: %s"), *FlowTextPathV1));
-        return false;
-    }
-    if (!FFileHelper::SaveStringToFile(FlowTextV2, *FlowTextPathV2))
-    {
-        FN2CLogger::Get().LogError(FString::Printf(TEXT("Failed to save flow text v2: %s"), *FlowTextPathV2));
-        return false;
-    }
-    if (!FFileHelper::SaveStringToFile(FlowTextV1, *FlowTextPath))
+    
+    if (!FFileHelper::SaveStringToFile(FlowText, *FlowTextPath))
     {
         FN2CLogger::Get().LogError(FString::Printf(TEXT("Failed to save flow text: %s"), *FlowTextPath));
         return false;
